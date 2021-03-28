@@ -7,6 +7,8 @@ int main()
 {
     Wide<9, uint8_t> a = { { 0xFF, 0x03 } };
     Wide<9, uint8_t> b = { { 0xFF, 0x03 } };
+    auto [q, r] = a.DivideQR(b);
+
     std::cout << "a = " << a << std::endl;
     std::cout << "b = " << b << std::endl;
     auto c = a - b;

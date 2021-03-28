@@ -16,9 +16,7 @@ Wide<Bits, Base> AddModuloM(const Wide<Bits, Base>& a, const Wide<Bits, Base>& b
 template <size_t Bits, typename Base>
 Wide<Bits, Base> MultiplyModuloM(const Wide<Bits, Base>& a, const Wide<Bits, Base>& b, const Wide<Bits, Base>& M)
 {
-    const auto ab = a * b;
-    const auto [quotient, remainder] = ab.DivideQR(M);
-    return remainder.Resize<Bits>();
+    return (a * b).DivideQR(M).second;
 }
 
 template <size_t Bits, typename Base>

@@ -11,6 +11,15 @@ namespace Detail
         return (ValidBitsInHighElement < BitsPerElement ? ((Base)1 << ValidBitsInHighElement) : 0) - 1;
     }
 
+    static constexpr size_t Log2(size_t x)
+    {
+        // 1 << rv == x
+        size_t rv = 0;
+        while (((size_t)1 << rv) < x)
+            ++rv;
+        return rv;
+    }
+
     template <typename T> struct DoubleSize {};
     template <> struct DoubleSize<uint8_t> { using type = uint16_t; };
     template <> struct DoubleSize<uint16_t> { using type = uint32_t; };
@@ -25,6 +34,7 @@ public:
     static constexpr size_t ElementCount = (Bits + BitsPerElement - 1) / BitsPerElement;
     static constexpr size_t ValidBitsInHighElement = Bits - BitsPerElement * (ElementCount - 1);
     static constexpr Base HighElementMask = Detail::GetHighElementMask<Base>(BitsPerElement, ValidBitsInHighElement);
+    static constexpr size_t Log2BitsPerElement = Detail::Log2(BitsPerElement);
 
     using Array = std::array<Base, ElementCount>;
     using DoubleBase = typename Detail::DoubleSize<Base>::type;
@@ -95,6 +105,72 @@ public:
                 rv[i + ElementCount] = c;
         }
         return rv;
+    }
+
+    bool GetBit(size_t bitIndex) const
+    {
+        size_t elementIndex = bitIndex >> Log2BitsPerElement;
+        size_t bitWithinElement = bitIndex - (elementIndex << Log2BitsPerElement);
+        Base bitMask = (Base)1 << bitWithinElement;
+        return (m_a[elementIndex] & bitMask) != 0;
+    }
+
+    void SetBit(size_t bitIndex, bool value)
+    {
+        size_t elementIndex = bitIndex >> Log2BitsPerElement;
+        size_t bitWithinElement = bitIndex - (elementIndex << Log2BitsPerElement);
+        Base bitMask = (Base)1 << bitWithinElement;
+        m_a[elementIndex] = (m_a[elementIndex] & ~bitMask) | ((Base)value << bitWithinElement);
+    }
+
+    template <size_t RBits>
+    std::pair<Wide<Bits, Base>, Wide<RBits, Base>> DivideQR(const Wide<RBits, Base>& rhs) const
+    {
+        static_assert(RBits <= Bits, "Invalid size for DivideQR");
+        if (rhs == 0)
+            throw std::invalid_argument("Division by zero");
+
+        Wide<Bits, Base> numerator = 0;
+        Wide<RBits, Base> quotient = 0;
+        for (size_t bitIndex = Bits - 1; bitIndex != (size_t)-1; --bitIndex)
+        {
+            numerator <<= 1;
+            numerator.SetBit(0, GetBit(bitIndex));
+            if (numerator >= rhs)
+            {
+                numerator -= rhs;
+                quotient.SetBit(bitIndex, true);
+            }
+        }
+        return { quotient, numerator };
+    }
+
+    Wide<Bits, Base> ShiftLeftTruncate(size_t shift) const
+    {
+        Wide<Bits, Base> rv;
+        const size_t ElementShift = shift >> BitsPerElement;
+        const size_t BitShift = shift - (ElementShift << BitsPerElement);
+        if (ElementShift > 0)
+            throw std::runtime_error("To Do");
+        Base prev = 0;
+        for (size_t i = 0; i < ElementCount; ++i)
+        {
+            rv[i] = (m_a[i] << BitShift) | prev;
+            prev = m_a[i] >> (BitsPerElement - BitShift);
+        }
+        return rv;
+    }
+
+    constexpr Wide& operator <<=(size_t Shift)
+    {
+        *this = ShiftLeftTruncate(Shift);
+        return *this;
+    }
+
+    Wide& operator =(Wide&& rhs)
+    {
+        m_a = std::move(rhs.m_a);
+        return *this;
     }
 
     template <size_t RBits>
@@ -241,7 +317,7 @@ public:
     }
 
     template <size_t RBits>
-    friend bool operator !=(const Wide& lhs, const Wide& rhs)
+    friend bool operator !=(const Wide& lhs, const Wide<RBits, Base>& rhs)
     {
         for (size_t i = 0; i < std::max(lhs.ElementCount, rhs.ElementCount); ++i)
         {
@@ -258,7 +334,7 @@ public:
     template <size_t RBits>
     friend bool operator ==(const Wide& lhs, const Wide<RBits, Base>& rhs)
     {
-        return !operator==(lhs, rhs);
+        return !operator!=(lhs, rhs);
     }
 
     template <size_t RBits>
