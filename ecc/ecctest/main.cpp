@@ -1,13 +1,22 @@
-#include "Wide.h"
 #include "Fp.h"
 
 #include <iostream>
-
 int main()
 {
+    using Fp5 = Fp < uint8_t, 0x05, 0x00, 0x00>;
+    Fp5 a = 2, b = 3;
+    const auto x = a.p;
+    auto c = a * b; // = 1
+    std::cout << c << std::endl;
+
+    /*
     Wide<9, uint8_t> a = { { 0xFF, 0x03 } };
     Wide<9, uint8_t> b = { { 0xFF, 0x03 } };
     auto [q, r] = a.DivideQR(b);
+
+    typedef Fp<4, uint8_t, 5> Fp5;
+    Fp5 a = { 2 }, b = { 3 };
+    auto c = a * b;
 
     std::cout << "a = " << a << std::endl;
     std::cout << "b = " << b << std::endl;
@@ -26,5 +35,5 @@ int main()
     std::cout << b256 << std::endl;
     std::cout << b1 << std::endl;
     std::cout << b64 << std::endl;
-    std::cout << b65 << std::endl;
+    std::cout << b65 << std::endl;*/
 }

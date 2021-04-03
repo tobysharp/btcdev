@@ -19,22 +19,36 @@ Wide<Bits, Base> MultiplyModuloM(const Wide<Bits, Base>& a, const Wide<Bits, Bas
     return (a * b).DivideQR(M).second;
 }
 
-template <size_t Bits, typename Base>
+template <typename Base, Base... p0x>
 class Fp
 {
 public:
-    Fp(const Wide<Bits, Base>& x, const Wide<Bits, Base>& p) : m_x(x), m_p(p) {}
-    Fp(const Fp& rhs) : m_x(rhs.m_x), m_p(rhs.m_p) {}
-    Fp(Fp&& rhs) : m_x(std::move(rhs.m_x)), m_p(std::move(rhs.m_p)) {}
+    static constexpr size_t ElementCount = sizeof...(p0x);
+    static constexpr size_t Bits = 8 * sizeof(Base) * ElementCount;
+    using Type = Wide<Bits, Base>;
+    static constexpr Type p = std::array<Base, ElementCount>{ p0x... };
 
-    friend Fp operator +(const Fp& lhs, const Fp& rhs)
+    Fp(const Type& rhs) : x(rhs) {}
+    Fp(Base rhs) : x(rhs) {}
+
+    bool operator !=(const Fp& rhs) const
     {
-        return { AddModuluM(lhs.m_x, rhs.m_x, lhs.m_p), m_p };
+        return x != rhs.x;
+    }
+
+    bool operator ==(const Fp& rhs) const
+    {
+        return x == rhs.x;
     }
 
     friend Fp operator -(const Fp& lhs)
     {
-        return { m_p - lhs.m_x, m_p };
+        return p - lhs.x;
+    }
+
+    friend Fp operator +(const Fp& lhs, const Fp& rhs)
+    {
+        return AddModuluM(lhs.x, rhs.x, p);
     }
 
     friend Fp operator -(const Fp& lhs, const Fp& rhs)
@@ -44,10 +58,14 @@ public:
 
     friend Fp operator *(const Fp& lhs, const Fp& rhs)
     {
-
+        return MultiplyModuloM(lhs.x, rhs.x, p);
     }
-private:
-    Wide<Bits, Base> m_x;
-    Wide<Bits, Base> m_p;
-};
 
+    friend std::ostream& operator <<(std::ostream& s, const Fp& rhs)
+    {
+        return s << rhs.x;
+    }
+
+private:
+    Type x;
+};
