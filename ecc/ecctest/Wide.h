@@ -130,19 +130,19 @@ public:
         if (rhs == 0)
             throw std::invalid_argument("Division by zero");
 
-        Wide<RBits, Base> numerator = 0;
+        Wide<Bits, Base> remainder = 0;
         Wide<Bits, Base> quotient = 0;
         for (size_t bitIndex = Bits - 1; bitIndex != (size_t)-1; --bitIndex)
         {
-            numerator <<= 1;
-            numerator.SetBit(0, GetBit(bitIndex));
-            if (numerator >= rhs)
+            remainder <<= 1; // BUG: Have to be careful not to truncate before ">= rhs" test.
+            remainder.SetBit(0, GetBit(bitIndex));
+            if (remainder >= rhs)
             {
-                numerator -= rhs;
+                remainder -= rhs;
                 quotient.SetBit(bitIndex, true);
             }
         }
-        return { quotient, numerator };
+        return { quotient, remainder.Truncate<RBits>() };
     }
 
     constexpr Wide<Bits, Base> ShiftLeftTruncate(size_t shift) const
@@ -213,13 +213,16 @@ public:
     constexpr Wide<NewBits, Base> Truncate() const
     {
         static_assert(NewBits <= Bits, "Invalid bit count");
-        typename Wide<NewBits, Base>::Array a = {};
+        if constexpr (NewBits == Bits)
+            return *this;
+
+        typename Wide<NewBits, Base>::Array a;
         std::copy(m_a.begin(), m_a.begin() + Wide<NewBits, Base>::ElementCount, a.begin());
         return a;
     }
 
     template <size_t NewBits>
-    constexpr Wide<NewBits, Base> Extend() const
+    constexpr Wide<NewBits, Base> ZeroExtend() const
     {
         static_assert(NewBits >= Bits, "Invalid bit count");
         typename Wide<NewBits, Base>::Array a = {};
@@ -228,10 +231,30 @@ public:
     }
 
     template <size_t NewBits>
+    constexpr Wide<NewBits, Base> SignExtend() const
+    {
+        static_assert(NewBits >= Bits, "Invalid bit count");
+        typename Wide<NewBits, Base>::Array a;
+        std::fill(a.begin(), a.end(), GetBit(Bits - 1) ? (Base)-1 : 0);
+        std::copy(m_a.begin(), m_a.end(), a.begin());
+        return a;
+    }
+
+    template <size_t NewBits>
+    constexpr Wide<NewBits, Base> TypeExtend() const
+    {
+        static_assert(NewBits >= Bits, "Invalid bit count");
+        if constexpr (std::is_signed_v<Base>)
+            return SignExtend<NewBits>();
+        else
+            return ZeroExtend<NewBits>();
+    }
+
+    template <size_t NewBits>
     constexpr Wide<NewBits, Base> Resize() const
     {
         if constexpr (NewBits > Bits)
-            return Extend<NewBits>();
+            return ZeroExtend<NewBits>();
         else if constexpr (NewBits < Bits)
             return Truncate<NewBits>();
         else
@@ -264,7 +287,7 @@ public:
     template <size_t RBits>
     friend constexpr auto operator -(const Wide& lhs, const Wide<RBits, Base>& rhs)
     {
-        return lhs + (-rhs);
+        return lhs + (-rhs.TypeExtend<Bits>());
     }
 
     template <size_t RBits>

@@ -75,8 +75,38 @@ namespace secp256k1
     //static_assert(G.IsOnCurve(), "Oops");
 }
 
+#include <cassert>
+
 int main()
 {
+    uint32_t p0 = 0xFFFFFC2F;
+    uint32_t y0 = 0x483ADA77;
+
+    Wide<32, uint8_t> pw = { { 0x2F, 0xFC, 0xFF, 0xFF } };
+    Wide<32, uint8_t> yw = { { 0x77, 0xDA, 0x3A, 0x48 } };
+
+    uint64_t y2 = (uint64_t)y0 * y0;
+    auto y2w = yw.Squared();
+
+
+    auto y2divp = (uint32_t)(y2 / p0);
+    auto y2modp = (uint32_t)(y2 % p0);
+
+    assert(y2 == (uint64_t)(y2divp) * p0 + y2modp);
+
+    auto y2dividepw = y2w.DivideQR(pw);
+    auto y2divpw = y2dividepw.first;
+    auto y2modpw = y2dividepw.second;
+    
+//    assert(y2modpw == y2modp);
+
+    constexpr uint8_t pp = 17;
+    constexpr Fp<uint8_t, pp> aa = 1, bb = 7;
+    constexpr EFp<Fp<uint8_t, pp>, aa, bb> xy1 = { 2, 0 };
+    constexpr EFp<Fp<uint8_t, pp>, aa, bb> xy2 = { 6, 3 };
+    bool P = xy1.IsOnCurve();
+    bool Q = xy2.IsOnCurve();
+
     secp256k1::EC G = secp256k1::G;
     bool yes = G.IsOnCurve();
     std::cout << (yes ? "good" : "bad") << std::endl;
