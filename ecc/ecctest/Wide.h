@@ -26,7 +26,7 @@ namespace Detail
     template <> struct DoubleSize<uint32_t> { using type = uint64_t; };
 }
 
-template <size_t Bits, typename Base = uint32_t>
+template <typename Base, size_t Bits>
 class Wide
 {
 public:
@@ -57,7 +57,7 @@ public:
     constexpr const Base& operator[](size_t i) const { return m_a[i]; }
 
     template <size_t RBits>
-    constexpr std::pair<Wide<std::max(Bits, RBits), Base>, bool> AddWithCarry(const Wide<RBits, Base>& rhs, bool carry = false) const
+    constexpr std::pair<Wide<Base, std::max(Bits, RBits)>, bool> AddWithCarry(const Wide<Base, RBits>& rhs, bool carry = false) const
     {
         /*
         * Adding with carry:
@@ -73,7 +73,7 @@ public:
         *  So the test (r < max(a,b) + c) is sufficient to determine carry.
         *  Computationally, we can use (c ? (r <= max(a,b)) : (r < max(a,b))) to avoid overflow in the test.
         */
-        Wide<std::max(Bits, RBits), Base> rv;
+        Wide<Base, std::max(Bits, RBits)> rv;
         for (size_t i = 0; i < std::max(ElementCount, rhs.ElementCount); ++i)
         {
             Base l = i < ElementCount ? m_a[i] : 0;
@@ -88,9 +88,9 @@ public:
     }
 
     template <size_t RBits>
-    constexpr Wide<Bits + RBits, Base> MultiplyExtend(const Wide<RBits, Base>& rhs) const
+    constexpr Wide<Base, Bits + RBits> MultiplyExtend(const Wide<Base, RBits>& rhs) const
     {
-        Wide<Bits + RBits, Base> rv = 0;
+        Wide<Base, Bits + RBits> rv = 0;
         for (size_t i = 0; i < rhs.ElementCount; ++i)
         {
             Base c = 0;
@@ -124,14 +124,14 @@ public:
     }
 
     template <size_t RBits>
-    constexpr std::pair<Wide<Bits, Base>, Wide<RBits, Base>> DivideQR(const Wide<RBits, Base>& rhs) const
+    constexpr std::pair<Wide<Base, Bits>, Wide<Base, RBits>> DivideQR(const Wide<Base, RBits>& rhs) const
     {
         static_assert(RBits <= Bits, "Invalid size for DivideQR");
         if (rhs == 0)
             throw std::invalid_argument("Division by zero");
 
-        Wide<Bits, Base> remainder = 0;
-        Wide<Bits, Base> quotient = 0;
+        Wide<Base, Bits> remainder = 0;
+        Wide<Base, Bits> quotient = 0;
         for (size_t bitIndex = Bits - 1; bitIndex != (size_t)-1; --bitIndex)
         {
             remainder <<= 1; // BUG: Have to be careful not to truncate before ">= rhs" test.
@@ -145,9 +145,9 @@ public:
         return { quotient, remainder.Truncate<RBits>() };
     }
 
-    constexpr Wide<Bits, Base> ShiftLeftTruncate(size_t shift) const
+    constexpr Wide<Base, Bits> ShiftLeftTruncate(size_t shift) const
     {
-        Wide<Bits, Base> rv;
+        Wide<Base, Bits> rv;
 
         //const size_t ElementShift = shift >> BitsPerElement;
         const size_t BitShift = shift;// -(ElementShift << BitsPerElement);
@@ -174,9 +174,9 @@ public:
     }
 
     template <size_t RBits>
-    constexpr Wide<std::max(Bits, RBits) + 1, Base> AddExtend(const Wide<RBits, Base>& rhs) const
+    constexpr Wide<Base, std::max(Bits, RBits) + 1> AddExtend(const Wide<Base, RBits>& rhs) const
     {
-        Wide<std::max(Bits, RBits) + 1, Base> rv;
+        Wide<Base, std::max(Bits, RBits) + 1> rv;
         bool carry = false;
         Base maxab;
         size_t i = 0;
@@ -194,7 +194,7 @@ public:
     }
 
     template <size_t RBits>
-    constexpr Wide<std::max(Bits, RBits), Base> AddTruncate(const Wide<RBits, Base>& rhs) const
+    constexpr Wide<Base, std::max(Bits, RBits)> AddTruncate(const Wide<Base, RBits>& rhs) const
     {
         return AddWithCarry(rhs).first;
     }
@@ -210,38 +210,38 @@ public:
     }
 
     template <size_t NewBits>
-    constexpr Wide<NewBits, Base> Truncate() const
+    constexpr Wide<Base, NewBits> Truncate() const
     {
         static_assert(NewBits <= Bits, "Invalid bit count");
         if constexpr (NewBits == Bits)
             return *this;
 
-        typename Wide<NewBits, Base>::Array a;
-        std::copy(m_a.begin(), m_a.begin() + Wide<NewBits, Base>::ElementCount, a.begin());
+        typename Wide<Base, NewBits>::Array a;
+        std::copy(m_a.begin(), m_a.begin() + Wide<Base, NewBits>::ElementCount, a.begin());
         return a;
     }
 
     template <size_t NewBits>
-    constexpr Wide<NewBits, Base> ZeroExtend() const
+    constexpr Wide<Base, NewBits> ZeroExtend() const
     {
         static_assert(NewBits >= Bits, "Invalid bit count");
-        typename Wide<NewBits, Base>::Array a = {};
+        typename Wide<Base, NewBits>::Array a = {};
         std::copy(m_a.begin(), m_a.end(), a.begin());
         return a;
     }
 
     template <size_t NewBits>
-    constexpr Wide<NewBits, Base> SignExtend() const
+    constexpr Wide<Base, NewBits> SignExtend() const
     {
         static_assert(NewBits >= Bits, "Invalid bit count");
-        typename Wide<NewBits, Base>::Array a;
+        typename Wide<Base, NewBits>::Array a;
         std::fill(a.begin(), a.end(), GetBit(Bits - 1) ? (Base)-1 : 0);
         std::copy(m_a.begin(), m_a.end(), a.begin());
         return a;
     }
 
     template <size_t NewBits>
-    constexpr Wide<NewBits, Base> TypeExtend() const
+    constexpr Wide<Base, NewBits> TypeExtend() const
     {
         static_assert(NewBits >= Bits, "Invalid bit count");
         if constexpr (std::is_signed_v<Base>)
@@ -251,7 +251,7 @@ public:
     }
 
     template <size_t NewBits>
-    constexpr Wide<NewBits, Base> Resize() const
+    constexpr Wide<Base, NewBits> Resize() const
     {
         if constexpr (NewBits > Bits)
             return ZeroExtend<NewBits>();
@@ -262,18 +262,18 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr auto operator +(const Wide& lhs, const Wide<RBits, Base>& rhs)
+    friend constexpr auto operator +(const Wide& lhs, const Wide<Base, RBits>& rhs)
     {
         return lhs.AddTruncate(rhs);
     }
 
     template <size_t RBits>
-    friend constexpr auto operator *(const Wide& lhs, const Wide<RBits, Base>& rhs)
+    friend constexpr auto operator *(const Wide& lhs, const Wide<Base, RBits>& rhs)
     {
         return lhs.MultiplyExtend(rhs);
     }
 
-    constexpr Wide<Bits*2, Base> Squared() const
+    constexpr Wide<Base, Bits*2> Squared() const
     {
         // TODO: Optimization
         return *this * *this;
@@ -285,20 +285,20 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr auto operator -(const Wide& lhs, const Wide<RBits, Base>& rhs)
+    friend constexpr auto operator -(const Wide& lhs, const Wide<Base, RBits>& rhs)
     {
         return lhs + (-rhs.TypeExtend<Bits>());
     }
 
     template <size_t RBits>
-    constexpr Wide<Bits, Base>& operator -=(const Wide<RBits, Base>& rhs)
+    constexpr Wide<Base, Bits>& operator -=(const Wide<Base, RBits>& rhs)
     {
         *this = *this -(rhs);
         return *this;
     }
 
     template <size_t RBits>
-    friend constexpr bool operator <(const Wide& lhs, const Wide<RBits, Base>& rhs)
+    friend constexpr bool operator <(const Wide& lhs, const Wide<Base, RBits>& rhs)
     {
         // Start with the high order elements
         for (size_t i = std::max(lhs.ElementCount, rhs.ElementCount) - 1; i != (size_t)-1; --i)
@@ -322,7 +322,7 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr bool operator <=(const Wide& lhs, const Wide<RBits, Base>& rhs)
+    friend constexpr bool operator <=(const Wide& lhs, const Wide<Base, RBits>& rhs)
     {
         // Start with the high order elements
         for (size_t i = std::max(lhs.ElementCount, rhs.ElementCount) - 1; i != (size_t)-1; --i)
@@ -346,7 +346,7 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr bool operator !=(const Wide& lhs, const Wide<RBits, Base>& rhs)
+    friend constexpr bool operator !=(const Wide& lhs, const Wide<Base, RBits>& rhs)
     {
         for (size_t i = 0; i < std::max(lhs.ElementCount, rhs.ElementCount); ++i)
         {
@@ -361,19 +361,19 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr bool operator ==(const Wide& lhs, const Wide<RBits, Base>& rhs)
+    friend constexpr bool operator ==(const Wide& lhs, const Wide<Base, RBits>& rhs)
     {
         return !operator!=(lhs, rhs);
     }
 
     template <size_t RBits>
-    friend constexpr bool operator >(const Wide& lhs, const Wide<RBits, Base>& rhs)
+    friend constexpr bool operator >(const Wide& lhs, const Wide<Base, RBits>& rhs)
     {
         return rhs < lhs;
     }
 
     template <size_t RBits>
-    friend constexpr bool operator >=(const Wide& lhs, const Wide<RBits, Base>& rhs)
+    friend constexpr bool operator >=(const Wide& lhs, const Wide<Base, RBits>& rhs)
     {
         return rhs <= lhs;
     }

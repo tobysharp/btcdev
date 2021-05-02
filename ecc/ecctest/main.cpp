@@ -72,7 +72,7 @@ namespace secp256k1
     constexpr Fp Gx = { { 0x16F81798, 0x59F2815B, 0x2DCE28D9, 0x029BFCDB, 0xCE870B07, 0x55A06295, 0xF9DCBBAC, 0x79BE667E } };
     constexpr Fp Gy = { { 0xFB10D4B8, 0x9C47D08F, 0xA6855419, 0xFD17B448, 0x0E1108A8, 0x5DA4FBFC, 0x26A3C465, 0x483ADA77 } };
     constexpr EC G = { Gx, Gy };
-    //static_assert(G.IsOnCurve(), "Oops");
+    static_assert(G.IsOnCurve(), "G not verified on secp256k1 curve.");
 }
 
 #include <cassert>
@@ -82,8 +82,8 @@ int main()
     uint32_t p0 = 0xFFFFFC2F;
     uint32_t y0 = 0x483ADA77;
 
-    Wide<32, uint8_t> pw = { { 0x2F, 0xFC, 0xFF, 0xFF } };
-    Wide<32, uint8_t> yw = { { 0x77, 0xDA, 0x3A, 0x48 } };
+    Wide<uint8_t, 32> pw = { { 0x2F, 0xFC, 0xFF, 0xFF } };
+    Wide<uint8_t, 32> yw = { { 0x77, 0xDA, 0x3A, 0x48 } };
 
     uint64_t y2 = (uint64_t)y0 * y0;
     auto y2w = yw.Squared();

@@ -3,7 +3,7 @@
 #include "Wide.h"
 
 template <size_t Bits, typename Base>
-constexpr Wide<Bits, Base> AddModuloM(const Wide<Bits, Base>& a, const Wide<Bits, Base>& b, const Wide<Bits, Base>& M)
+constexpr Wide<Base, Bits> AddModuloM(const Wide<Base, Bits>& a, const Wide<Base, Bits>& b, const Wide<Base, Bits>& M)
 {
     auto ab = a + b;
     if (ab >= M)
@@ -14,13 +14,13 @@ constexpr Wide<Bits, Base> AddModuloM(const Wide<Bits, Base>& a, const Wide<Bits
 }
 
 template <size_t Bits, typename Base>
-constexpr Wide<Bits, Base> MultiplyModuloM(const Wide<Bits, Base>& a, const Wide<Bits, Base>& b, const Wide<Bits, Base>& M)
+constexpr Wide<Base, Bits> MultiplyModuloM(const Wide<Base, Bits>& a, const Wide<Base, Bits>& b, const Wide<Base, Bits>& M)
 {
     return (a * b).DivideQR(M).second;
 }
 
 template <size_t Bits, typename Base>
-constexpr Wide<Bits, Base> SquareModuloM(const Wide<Bits, Base>& a, const Wide<Bits, Base>& M)
+constexpr Wide<Base, Bits> SquareModuloM(const Wide<Base, Bits>& a, const Wide<Base, Bits>& M)
 {
     return a.Squared().DivideQR(M).second;
 }
@@ -31,7 +31,7 @@ class Fp
 public:
     static constexpr size_t ElementCount = sizeof...(p0x);
     static constexpr size_t Bits = 8 * sizeof(Base) * ElementCount;
-    using Type = Wide<Bits, Base>;
+    using Type = Wide<Base, Bits>;
     using Array = typename Type::Array;
     static constexpr Type p = Array{ p0x... };
 
