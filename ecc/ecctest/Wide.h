@@ -30,6 +30,7 @@ template <typename Base, size_t Bits>
 class Wide
 {
 public:
+    static constexpr size_t BitCount = Bits;
     static constexpr size_t BitsPerElement = 8 * sizeof(Base);
     static constexpr size_t ElementCount = (Bits + BitsPerElement - 1) / BitsPerElement;
     static constexpr size_t ValidBitsInHighElement = Bits - BitsPerElement * (ElementCount - 1);
@@ -55,6 +56,14 @@ public:
     constexpr const Array& Elements() const { return m_a; }
     constexpr Base& operator[](size_t i) { return m_a[i]; }
     constexpr const Base& operator[](size_t i) const { return m_a[i]; }
+
+    constexpr bool IsZero() const
+    {
+        Base x = 0;
+        for (auto y : m_a)
+            x |= y;
+        return x == 0;
+    }
 
     template <size_t RBits>
     constexpr std::pair<Wide<Base, std::max(Bits, RBits)>, bool> AddWithCarry(const Wide<Base, RBits>& rhs, bool carry = false) const
@@ -113,6 +122,37 @@ public:
         size_t bitWithinElement = bitIndex - (elementIndex << Log2BitsPerElement);
         Base bitMask = (Base)1 << bitWithinElement;
         return (m_a[elementIndex] & bitMask) != 0;
+    }
+
+    // Returns the bit index of the highest bit that is not set to the clear bit.
+    // The clear bit is zero for unsigned base types, and equal to the sign bit for signed base types.
+    constexpr size_t Log2() const
+    {
+        bool clearBit = false;
+        if constexpr (std::is_signed_v<Base>)
+            clearBit = GetBit(BitCount - 1);
+        const Base clearElement = clearBit ? (Base)-1 : 0;
+        for (size_t rElementIndex = 0; rElementIndex < ElementCount; ++rElementIndex)
+        {
+            size_t elementIndex = ElementCount - 1 - rElementIndex;
+            if (m_a[elementIndex] != clearElement)
+            {
+                for (size_t rBitIndex = 0; rBitIndex < BitsPerElement; ++rBitIndex)
+                {
+                    size_t bitIndex = (elementIndex + 1) * BitsPerElement - 1 - rBitIndex;
+                    if (GetBit(bitIndex))
+                        return bitIndex;
+                }
+            }
+        }
+        return -1;
+    }
+
+    static constexpr Wide Exp2(size_t bitIndex)
+    {
+        Wide x;
+        x.SetBit(bitIndex, true);
+        return x;
     }
 
     constexpr void SetBit(size_t bitIndex, bool value)
@@ -295,6 +335,16 @@ public:
     {
         *this = *this -(rhs);
         return *this;
+    }
+
+    Wide& operator++()
+    {
+        return *this += Wide(1);
+    }
+
+    Wide& operator--()
+    {
+        return *this -= Wide(1);
     }
 
     template <size_t RBits>

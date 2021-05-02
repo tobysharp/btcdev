@@ -2,12 +2,100 @@
 
 #include <iostream>
 
+template <typename Fp>
+struct Point
+{
+    Fp x, y;
+};
+
+template <typename Fp, Fp a, Fp b> 
+struct EllipticCurve
+{
+    static constexpr bool IsInfinity(const Point<Fp>& pt)
+    {
+        return pt.x == 0 && pt.y == 0;
+    }
+};
+
+// returns floor(sqrt(x))
+template <typename Uint>
+inline Uint SqrtFloor(const Uint& x)
+{
+/*
+* Newton's method:
+* f(u) = u^2 - x
+* f'(u) = 2u
+* u = x
+* u -= f(u) / f'(u)
+* u -= (u^2 - x) / 2u
+*/
+    if (x.IsZero())
+        return x;
+    Uint u = Uint::Exp2((x.Log2() >> 1) + 1); // In the range (sqrt(x), 2*sqrt(x)] to converge from above
+    while (true)
+    {
+        auto delta = (u.Squared() - x).DivideQR(u + u);
+        auto deltaTrunc = delta.first.Truncate<u.BitCount>();
+        if (deltaTrunc.IsZero())
+        {
+            // Reached rounding error
+            if (!delta.second.IsZero())
+                return --u;
+            else
+                return u;
+        }
+        u -= deltaTrunc;
+    }
+}
+
+template <typename Uint>
+inline bool IsPrime(const Uint& x)
+{
+    if (x < 2)
+        return false;
+    if (x == 2 || x == 3)
+        return true;
+
+    const auto upper = SqrtFloor(x);
+    for (Uint div = 2; div <= upper; div = NextPrime(div))
+    {
+        if (x.DivideQR(div).second == 0)
+            return false;
+    }
+    return true;
+}
+
+template <typename Uint>
+inline bool ValidateECDomainParams(
+    const Uint& p,
+    const Uint& a,
+    const Uint& b,
+    const Point<Uint>& G,
+    const Uint& n,
+    uint32_t h = 1,
+    uint32_t t = 256)
+{
+    static constexpr std::array<uint32_t, 5> tvals = { 80, 112, 128, 192, 256 };
+    if (std::find(tvals.begin(), tvals.end(), [&](auto tval) { return tval == t; }) == tvals.end())
+        return false;
+
+    // 1. Check that p is an odd prime such that ceil(log_2 p) = 2t if 80 < t < 256,
+    // or such that ceil(log_2 p) = 521 if t = 256, or such that ceil(log_2 p) = 192 if t = 80.
+    
+    // Check that p is odd
+    if (!(p[0] & 1))
+        return false;
+    
+    // Check that p is prime
+
+}
+
 // A point on an elliptic curve
 template <typename Fp, Fp a, Fp b>
 class EFp
 {
-public:
     static_assert(4 * a.Squared() * a + 27 * b.Squared() != 0, "Invalid elliptic curve parameters a, b");
+public:
     using Multi = typename Fp::Type;
     constexpr static const Multi p = Fp::p;
     
@@ -64,7 +152,6 @@ namespace secp256k1
 {
     using Base = uint32_t;
     using Fp = ::Fp<Base, 0xFFFFFC2F, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF>;
-    // TODO: Get rid of bit count in Wide
     constexpr Fp aa = 0;
     constexpr Fp bb = 7;
 
@@ -79,33 +166,8 @@ namespace secp256k1
 
 int main()
 {
-    uint32_t p0 = 0xFFFFFC2F;
-    uint32_t y0 = 0x483ADA77;
-
-    Wide<uint8_t, 32> pw = { { 0x2F, 0xFC, 0xFF, 0xFF } };
-    Wide<uint8_t, 32> yw = { { 0x77, 0xDA, 0x3A, 0x48 } };
-
-    uint64_t y2 = (uint64_t)y0 * y0;
-    auto y2w = yw.Squared();
-
-
-    auto y2divp = (uint32_t)(y2 / p0);
-    auto y2modp = (uint32_t)(y2 % p0);
-
-    assert(y2 == (uint64_t)(y2divp) * p0 + y2modp);
-
-    auto y2dividepw = y2w.DivideQR(pw);
-    auto y2divpw = y2dividepw.first;
-    auto y2modpw = y2dividepw.second;
-    
-//    assert(y2modpw == y2modp);
-
-    constexpr uint8_t pp = 17;
-    constexpr Fp<uint8_t, pp> aa = 1, bb = 7;
-    constexpr EFp<Fp<uint8_t, pp>, aa, bb> xy1 = { 2, 0 };
-    constexpr EFp<Fp<uint8_t, pp>, aa, bb> xy2 = { 6, 3 };
-    bool P = xy1.IsOnCurve();
-    bool Q = xy2.IsOnCurve();
+    Wide<uint32_t, 256> T = { { 16785408u } };
+    const auto sqrtf = SqrtFloor(T);
 
     secp256k1::EC G = secp256k1::G;
     bool yes = G.IsOnCurve();
