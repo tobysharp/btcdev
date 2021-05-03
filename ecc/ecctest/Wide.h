@@ -308,6 +308,12 @@ public:
     }
 
     template <size_t RBits>
+    constexpr Wide& operator +=(const Wide<Base, RBits>& rhs)
+    {
+        return *this = *this + rhs;
+    }
+
+    template <size_t RBits>
     friend constexpr auto operator *(const Wide& lhs, const Wide<Base, RBits>& rhs)
     {
         return lhs.MultiplyExtend(rhs);

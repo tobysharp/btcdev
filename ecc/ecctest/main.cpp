@@ -1,6 +1,8 @@
 #include "Fp.h"
 
 #include <iostream>
+#include <random>
+#include <chrono>
 
 template <typename Fp>
 struct Point
@@ -31,36 +33,39 @@ inline Uint SqrtFloor(const Uint& x)
 */
     if (x.IsZero())
         return x;
-    Uint u = Uint::Exp2((x.Log2() >> 1) + 1); // In the range (sqrt(x), 2*sqrt(x)] to converge from above
+    Uint u = Uint::Exp2((x.Log2() >> 1) + 1); // In the range (sqrt(x), 2*sqrt(x)] to converge from above for +ve delta
     while (true)
     {
         auto delta = (u.Squared() - x).DivideQR(u + u);
-        auto deltaTrunc = delta.first.Truncate<u.BitCount>();
+        auto deltaTrunc = delta.first.Truncate<u.BitCount>(); // >= 0
         if (deltaTrunc.IsZero())
         {
             // Reached rounding error
-            if (!delta.second.IsZero())
-                return --u;
-            else
-                return u;
+            return delta.second.IsZero() ? u : --u;
         }
         u -= deltaTrunc;
     }
 }
 
+
 template <typename Uint>
 inline bool IsPrime(const Uint& x)
 {
-    if (x < 2)
+    // All primes greater than 3 are of the form (6k +- 1) with k > 0.
+    if (x <= Uint(3))
+        return x > Uint(1);
+    if (!(x[0] & 1))
         return false;
-    if (x == 2 || x == 3)
-        return true;
+    if (x.DivideQR(Uint(3)).second.IsZero())
+        return false;
 
-    const auto upper = SqrtFloor(x);
-    for (Uint div = 2; div <= upper; div = NextPrime(div))
+    // Let u = 6k - 1, starting with k = 1.
+    Uint u = 5;
+    while (u.Squared() <= x)
     {
-        if (x.DivideQR(div).second == 0)
+        if (x.DivideQR(u).second.IsZero() || x.DivideQR(u + Uint(2)).second.IsZero())
             return false;
+        u += Uint(6);
     }
     return true;
 }
@@ -87,7 +92,8 @@ inline bool ValidateECDomainParams(
         return false;
     
     // Check that p is prime
-
+    if (!IsPrime(p))
+        return false;
 }
 
 // A point on an elliptic curve
@@ -100,6 +106,8 @@ public:
     constexpr static const Multi p = Fp::p;
     
     constexpr EFp() {}
+    constexpr EFp(const EFp& rhs) : x(rhs.x), y(rhs.y) {}
+    constexpr EFp(EFp&& rhs) : x(std::move(rhs.x)), y(std::move(rhs.y)) {}
     constexpr EFp(const Fp& x, const Fp& y) : x(x), y(y) {}
 
     constexpr bool IsInfinity() const
@@ -136,6 +144,41 @@ public:
         }
     }
 
+    EFp& operator =(const EFp& rhs)
+    {
+        x = rhs.x;
+        y = rhs.y;
+        return *this;
+    }
+
+    EFp& operator =(EFp&& rhs)
+    {
+        x = std::move(rhs.x);
+        y = std::move(rhs.y);
+        return *this;
+    }
+
+    EFp& operator +=(const EFp& rhs)
+    {
+        return *this = *this + rhs;
+    }
+
+    // Scalar multiplication
+    friend EFp operator *(const Fp& scalar, const EFp& pt)
+    {
+        // Scalar multiplication of elliptic curve points can be computed efficiently using the 
+        // addition rule together with the double-and-add algorithm
+        EFp sum;
+        EFp power = pt;
+        for (size_t bitIndex = 0; bitIndex < scalar.x.BitCount; ++bitIndex)
+        {
+            if (scalar.x.GetBit(bitIndex))
+                sum += power;
+            power += power;
+        }
+        return sum;
+    }
+
     constexpr bool IsOnCurve() const
     {
         if (IsInfinity())
@@ -160,14 +203,42 @@ namespace secp256k1
     constexpr Fp Gy = { { 0xFB10D4B8, 0x9C47D08F, 0xA6855419, 0xFD17B448, 0x0E1108A8, 0x5DA4FBFC, 0x26A3C465, 0x483ADA77 } };
     constexpr EC G = { Gx, Gy };
     static_assert(G.IsOnCurve(), "G not verified on secp256k1 curve.");
+
+    constexpr Fp n  = { { 0xD0364141, 0xBFD25E8C, 0xAF48A03B, 0xBAAEDCE6, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF } };
+    constexpr Base h = 1;
+
+    template <typename Rnd>
+    inline Fp GenerateRandomPrivateKey(Rnd& rnd)
+    {
+        Fp::Type d;
+        do
+        {
+            std::array<Base, Fp::ElementCount> arr;
+            for (size_t i = 0; i < arr.size(); ++i)
+                arr[i] = rnd();
+            d = arr;
+        } while (d.IsZero() || d >= n.x);
+        return d;
+    }
+
+    inline EC PrivateKeyToPublicKey(const Fp& privateKey)
+    {
+        return privateKey * G;
+    }
 }
 
 #include <cassert>
 
 int main()
 {
-    Wide<uint32_t, 256> T = { { 16785408u } };
-    const auto sqrtf = SqrtFloor(T);
+    auto now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    std::mt19937 random(static_cast<unsigned int>(now));
+    auto privateKey = secp256k1::GenerateRandomPrivateKey(random);
+    auto publicKey = secp256k1::PrivateKeyToPublicKey(privateKey);
+
+    bool prime = IsPrime(secp256k1::Fp::p);
+    std::cout << "prime? " << (prime ? "yes " : "no ") << std::endl;
+    return 0;
 
     secp256k1::EC G = secp256k1::G;
     bool yes = G.IsOnCurve();

@@ -25,6 +25,20 @@ constexpr Wide<Base, Bits> SquareModuloM(const Wide<Base, Bits>& a, const Wide<B
     return a.Squared().DivideQR(M).second;
 }
 
+template <size_t Bits, typename Base>
+constexpr Wide<Base, Bits> DivideModuloPrime(const Wide<Base, Bits>& a, const Wide<Base, Bits>& b, const Wide<Base, Bits>& p)
+{
+    // To compute x = a/b (mod p), first compute the extended gcd(b, p). 
+    // Note that if p is prime and 1 <= b < p then gcd(b, p) = 1.
+    // The extended GCD algorithm computes s, t, u such that sb + tp = u where u = gdc(b, p).
+    // So in the case that u = 1, we get s, t such that sb + tp = 1, i.e. sb = 1 (mod p).
+    // Then sab = a (mod p). So a/b = sa (mod p).
+    const auto gcd = ExtendedBinaryGCD(b, p); // TODO
+    assert(gcd.v == Wide<Base, Bits>(1));
+    const auto s = gcd.a;
+    return MultiplyModuloM(s, a, p);
+}
+
 template <typename Base, Base... p0x>
 class Fp
 {
@@ -73,6 +87,11 @@ public:
     constexpr Fp Squared() const
     {
         return SquareModuloM(x, p);
+    }
+
+    friend constexpr Fp operator /(const Fp& lhs, const Fp& rhs)
+    {
+        return DivideModuloPrime(lhs.x, rhs.x, p);
     }
 
     friend constexpr std::ostream& operator <<(std::ostream& s, const Fp& rhs)
