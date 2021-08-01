@@ -121,28 +121,28 @@ public:
     }
 
     // Add two points on the curve
-    friend EFp operator +(const EFp& lhs, const EFp& rhs)
-    {
-        if (lhs.IsInfinity() || rhs.IsInfinity())
-            return { lhs.x + rhs.x, lhs.y + rhs.y };
-        else if (lhs.x != rhs.x)
-        {
-            const Fp lambda = (rhs.y - lhs.y) / (rhs.x - lhs.x);
-            const Fp x3 = lambda.Squared() - lhs.x - rhs.x;
-            const Fp y3 = lambda * (lhs.x - x3) - lhs.y;
-            return { x3, y3 };
-        }
-        else if (lhs.y == -rhs.y)
-            return {};
-        else
-        {
-            // Add a (non-infinity) point to itself 
-            const Fp lambda = (3 * lhs.x.Squared() + a) / (lhs.y + lhs.y);
-            const Fp x3 = lambda.Squared() - (lhs.x + lhs.x);
-            const Fp y3 = lambda * (lhs.x - x3) - lhs.y;
-            return { x3, y3 };
-        }
-    }
+    //friend EFp operator +(const EFp& lhs, const EFp& rhs)
+    //{
+    //    if (lhs.IsInfinity() || rhs.IsInfinity())
+    //        return { lhs.x + rhs.x, lhs.y + rhs.y };
+    //    else if (lhs.x != rhs.x)
+    //    {
+    //        const Fp lambda = (rhs.y - lhs.y) / (rhs.x - lhs.x);
+    //        const Fp x3 = lambda.Squared() - lhs.x - rhs.x;
+    //        const Fp y3 = lambda * (lhs.x - x3) - lhs.y;
+    //        return { x3, y3 };
+    //    }
+    //    else if (lhs.y == -rhs.y)
+    //        return {};
+    //    else
+    //    {
+    //        // Add a (non-infinity) point to itself 
+    //        const Fp lambda = (3 * lhs.x.Squared() + a) / (lhs.y + lhs.y);
+    //        const Fp x3 = lambda.Squared() - (lhs.x + lhs.x);
+    //        const Fp y3 = lambda * (lhs.x - x3) - lhs.y;
+    //        return { x3, y3 };
+    //    }
+    //}
 
     EFp& operator =(const EFp& rhs)
     {
@@ -158,26 +158,26 @@ public:
         return *this;
     }
 
-    EFp& operator +=(const EFp& rhs)
-    {
-        return *this = *this + rhs;
-    }
+    //EFp& operator +=(const EFp& rhs)
+    //{
+    //    return *this = *this + rhs;
+    //}
 
     // Scalar multiplication
-    friend EFp operator *(const Fp& scalar, const EFp& pt)
-    {
-        // Scalar multiplication of elliptic curve points can be computed efficiently using the 
-        // addition rule together with the double-and-add algorithm
-        EFp sum;
-        EFp power = pt;
-        for (size_t bitIndex = 0; bitIndex < scalar.x.BitCount; ++bitIndex)
-        {
-            if (scalar.x.GetBit(bitIndex))
-                sum += power;
-            power += power;
-        }
-        return sum;
-    }
+    //friend EFp operator *(const Fp& scalar, const EFp& pt)
+    //{
+    //    // Scalar multiplication of elliptic curve points can be computed efficiently using the 
+    //    // addition rule together with the double-and-add algorithm
+    //    EFp sum;
+    //    EFp power = pt;
+    //    for (size_t bitIndex = 0; bitIndex < scalar.x.BitCount; ++bitIndex)
+    //    {
+    //        if (scalar.x.GetBit(bitIndex))
+    //            sum += power;
+    //        power += power;
+    //    }
+    //    return sum;
+    //}
 
     constexpr bool IsOnCurve() const
     {
@@ -194,7 +194,7 @@ public:
 namespace secp256k1
 {
     using Base = uint32_t;
-    using Fp = ::Fp<Base, 0xFFFFFC2F, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF>;
+    using Fp = ::Fp<0xFFFFFC2F, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF>;
     constexpr Fp aa = 0;
     constexpr Fp bb = 7;
 
@@ -221,10 +221,10 @@ namespace secp256k1
         return d;
     }
 
-    inline EC PrivateKeyToPublicKey(const Fp& privateKey)
-    {
-        return privateKey * G;
-    }
+    //inline EC PrivateKeyToPublicKey(const Fp& privateKey)
+    //{
+    //    return privateKey * G;
+    //}
 }
 
 #include <cassert>
@@ -234,11 +234,11 @@ int main()
     auto now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     std::mt19937 random(static_cast<unsigned int>(now));
     auto privateKey = secp256k1::GenerateRandomPrivateKey(random);
-    auto publicKey = secp256k1::PrivateKeyToPublicKey(privateKey);
+    //auto publicKey = secp256k1::PrivateKeyToPublicKey(privateKey);
 
-    bool prime = IsPrime(secp256k1::Fp::p);
-    std::cout << "prime? " << (prime ? "yes " : "no ") << std::endl;
-    return 0;
+    //bool prime = IsPrime(secp256k1::Fp::p);
+    //std::cout << "prime? " << (prime ? "yes " : "no ") << std::endl;
+    //return 0;
 
     secp256k1::EC G = secp256k1::G;
     bool yes = G.IsOnCurve();
@@ -262,7 +262,7 @@ int main()
 
 
     */
-    using Fp5 = Fp < uint8_t, 0x05, 0x00, 0x00>;
+    using Fp5 = Fp <0x00000005, 0x00000000, 0x00000000>;
     Fp5 a = 2, b = 3;
     const auto x = a.p;
     auto c = a * b; // = 1

@@ -26,10 +26,12 @@ namespace Detail
     template <> struct DoubleSize<uint32_t> { using type = uint64_t; };
 }
 
-template <typename Base, size_t Bits>
+template <size_t Bits, bool IsSigned = false>
 class Wide
 {
 public:
+    using Base = uint32_t;
+    static_assert(!std::is_signed_v<Base>);
     static constexpr size_t BitCount = Bits;
     static constexpr size_t BitsPerElement = 8 * sizeof(Base);
     static constexpr size_t ElementCount = (Bits + BitsPerElement - 1) / BitsPerElement;
@@ -66,7 +68,7 @@ public:
     }
 
     template <size_t RBits>
-    constexpr std::pair<Wide<Base, std::max(Bits, RBits)>, bool> AddWithCarry(const Wide<Base, RBits>& rhs, bool carry = false) const
+    constexpr std::pair<Wide<std::max(Bits, RBits), IsSigned>, bool> AddWithCarry(const Wide<RBits, IsSigned>& rhs, bool carry = false) const
     {
         /*
         * Adding with carry:
@@ -82,7 +84,7 @@ public:
         *  So the test (r < max(a,b) + c) is sufficient to determine carry.
         *  Computationally, we can use (c ? (r <= max(a,b)) : (r < max(a,b))) to avoid overflow in the test.
         */
-        Wide<Base, std::max(Bits, RBits)> rv;
+        Wide<std::max(Bits, RBits), IsSigned> rv;
         for (size_t i = 0; i < std::max(ElementCount, rhs.ElementCount); ++i)
         {
             Base l = i < ElementCount ? m_a[i] : 0;
@@ -97,9 +99,9 @@ public:
     }
 
     template <size_t RBits>
-    constexpr Wide<Base, Bits + RBits> MultiplyExtend(const Wide<Base, RBits>& rhs) const
+    constexpr Wide<Bits + RBits, false> MultiplyUnsignedExtend(const Wide<RBits, false>& rhs) const
     {
-        Wide<Base, Bits + RBits> rv = 0;
+        Wide<Bits + RBits, false> rv = 0;
         for (size_t i = 0; i < rhs.ElementCount; ++i)
         {
             Base c = 0;
@@ -164,14 +166,14 @@ public:
     }
 
     template <size_t RBits>
-    constexpr std::pair<Wide<Base, Bits>, Wide<Base, RBits>> DivideQR(const Wide<Base, RBits>& rhs) const
+    constexpr std::pair<Wide<Bits, false>, Wide<RBits, false>> DivideUnsignedQR(const Wide<RBits, false>& rhs) const
     {
-        static_assert(RBits <= Bits, "Invalid size for DivideQR");
+        static_assert(RBits <= Bits, "Invalid size for DivideUnsignedQR");
         if (rhs == 0)
             throw std::invalid_argument("Division by zero");
 
-        Wide<Base, Bits> remainder = 0;
-        Wide<Base, Bits> quotient = 0;
+        Wide<Bits, false> remainder = 0;
+        Wide<Bits, false> quotient = 0;
         for (size_t bitIndex = Bits - 1; bitIndex != (size_t)-1; --bitIndex)
         {
             remainder <<= 1; // BUG: Have to be careful not to truncate before ">= rhs" test.
@@ -185,9 +187,9 @@ public:
         return { quotient, remainder.Truncate<RBits>() };
     }
 
-    constexpr Wide<Base, Bits> ShiftLeftTruncate(size_t shift) const
+    constexpr Wide<Bits, IsSigned> ShiftLeftTruncate(size_t shift) const
     {
-        Wide<Base, Bits> rv;
+        Wide<Bits, IsSigned> rv;
 
         //const size_t ElementShift = shift >> BitsPerElement;
         const size_t BitShift = shift;// -(ElementShift << BitsPerElement);
@@ -214,9 +216,9 @@ public:
     }
 
     template <size_t RBits>
-    constexpr Wide<Base, std::max(Bits, RBits) + 1> AddExtend(const Wide<Base, RBits>& rhs) const
+    constexpr Wide<std::max(Bits, RBits) + 1, IsSigned> AddExtend(const Wide<RBits, IsSigned>& rhs) const
     {
-        Wide<Base, std::max(Bits, RBits) + 1> rv;
+        Wide<std::max(Bits, RBits) + 1, IsSigned> rv;
         bool carry = false;
         Base maxab;
         size_t i = 0;
@@ -234,14 +236,14 @@ public:
     }
 
     template <size_t RBits>
-    constexpr Wide<Base, std::max(Bits, RBits)> AddTruncate(const Wide<Base, RBits>& rhs) const
+    constexpr Wide<std::max(Bits, RBits), IsSigned> AddTruncate(const Wide<RBits, IsSigned>& rhs) const
     {
         return AddWithCarry(rhs).first;
     }
 
-    constexpr Wide TwosComplement() const
+    constexpr Wide<Bits, IsSigned> TwosComplement() const
     {
-        Wide rv;
+        Wide<Bits, IsSigned> rv;
         rv.m_a[0] = (Base)(-(std::make_signed_t<Base>)m_a[0]);
         for (size_t i = 1; i < ElementCount; ++i)
             rv.m_a[i] = (Base)(-(std::make_signed_t<Base>)(m_a[i] + 1));
@@ -250,51 +252,51 @@ public:
     }
 
     template <size_t NewBits>
-    constexpr Wide<Base, NewBits> Truncate() const
+    constexpr Wide<NewBits, IsSigned> Truncate() const
     {
         static_assert(NewBits <= Bits, "Invalid bit count");
         if constexpr (NewBits == Bits)
             return *this;
 
-        typename Wide<Base, NewBits>::Array a;
-        std::copy(m_a.begin(), m_a.begin() + Wide<Base, NewBits>::ElementCount, a.begin());
+        typename Wide<NewBits, IsSigned>::Array a;
+        std::copy(m_a.begin(), m_a.begin() + Wide<NewBits, IsSigned>::ElementCount, a.begin());
         return a;
     }
 
     template <size_t NewBits>
-    constexpr Wide<Base, NewBits> ZeroExtend() const
+    constexpr Wide<NewBits, IsSigned> ZeroExtend() const
     {
         static_assert(NewBits >= Bits, "Invalid bit count");
-        typename Wide<Base, NewBits>::Array a = {};
+        typename Wide<NewBits, IsSigned>::Array a = {};
         std::copy(m_a.begin(), m_a.end(), a.begin());
         return a;
     }
 
     template <size_t NewBits>
-    constexpr Wide<Base, NewBits> SignExtend() const
+    constexpr Wide<NewBits, IsSigned> SignExtend() const
     {
         static_assert(NewBits >= Bits, "Invalid bit count");
-        typename Wide<Base, NewBits>::Array a;
+        typename Wide<NewBits, IsSigned>::Array a;
         std::fill(a.begin(), a.end(), GetBit(Bits - 1) ? (Base)-1 : 0);
         std::copy(m_a.begin(), m_a.end(), a.begin());
         return a;
     }
 
     template <size_t NewBits>
-    constexpr Wide<Base, NewBits> TypeExtend() const
+    constexpr Wide<NewBits, IsSigned> TypeExtend() const
     {
         static_assert(NewBits >= Bits, "Invalid bit count");
-        if constexpr (std::is_signed_v<Base>)
+        if constexpr (IsSigned)
             return SignExtend<NewBits>();
         else
             return ZeroExtend<NewBits>();
     }
 
     template <size_t NewBits>
-    constexpr Wide<Base, NewBits> Resize() const
+    constexpr Wide<NewBits, IsSigned> Resize() const
     {
         if constexpr (NewBits > Bits)
-            return ZeroExtend<NewBits>();
+            return TypeExtend<NewBits>();
         else if constexpr (NewBits < Bits)
             return Truncate<NewBits>();
         else
@@ -302,45 +304,46 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr auto operator +(const Wide& lhs, const Wide<Base, RBits>& rhs)
+    friend constexpr auto operator +(const Wide<Bits, IsSigned>& lhs, const Wide<RBits, IsSigned>& rhs)
     {
-        return lhs.AddTruncate(rhs);
+        //return lhs.AddTruncate(rhs);
+        return lhs.AddExtend(rhs);
     }
 
     template <size_t RBits>
-    constexpr Wide& operator +=(const Wide<Base, RBits>& rhs)
+    constexpr Wide& operator +=(const Wide<RBits, IsSigned>& rhs)
     {
-        return *this = *this + rhs;
+        return *this = (*this + rhs).Truncate<Bits>();
     }
 
     template <size_t RBits>
-    friend constexpr auto operator *(const Wide& lhs, const Wide<Base, RBits>& rhs)
+    friend constexpr auto operator *(const Wide<Bits, IsSigned>& lhs, const Wide<RBits, IsSigned>& rhs)
     {
-        return lhs.MultiplyExtend(rhs);
+        static_assert(!IsSigned);
+        return lhs.MultiplyUnsignedExtend(rhs);
     }
 
-    constexpr Wide<Base, Bits*2> Squared() const
+    constexpr Wide<Bits*2, IsSigned> Squared() const
     {
         // TODO: Optimization
         return *this * *this;
     }
 
-    friend constexpr auto operator -(const Wide& lhs)
+    friend constexpr auto operator -(const Wide<Bits, IsSigned>& lhs)
     {
         return lhs.TwosComplement();
     }
 
     template <size_t RBits>
-    friend constexpr auto operator -(const Wide& lhs, const Wide<Base, RBits>& rhs)
+    friend constexpr auto operator -(const Wide<Bits, IsSigned>& lhs, const Wide<RBits, IsSigned>& rhs)
     {
-        return lhs + (-rhs.TypeExtend<Bits>());
+        return lhs.TypeExtend<std::max(Bits, RBits)>() + (-rhs.TypeExtend<std::max(Bits, RBits)>());
     }
 
     template <size_t RBits>
-    constexpr Wide<Base, Bits>& operator -=(const Wide<Base, RBits>& rhs)
+    constexpr Wide& operator -=(const Wide<RBits, IsSigned>& rhs)
     {
-        *this = *this -(rhs);
-        return *this;
+        return *this = (*this - rhs).Truncate<Bits>();
     }
 
     Wide& operator++()
@@ -354,8 +357,9 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr bool operator <(const Wide& lhs, const Wide<Base, RBits>& rhs)
+    friend constexpr bool operator <(const Wide<Bits, IsSigned>& lhs, const Wide<RBits, IsSigned>& rhs)
     {
+        static_assert(!IsSigned);
         // Start with the high order elements
         for (size_t i = std::max(lhs.ElementCount, rhs.ElementCount) - 1; i != (size_t)-1; --i)
         {
@@ -378,8 +382,9 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr bool operator <=(const Wide& lhs, const Wide<Base, RBits>& rhs)
+    friend constexpr bool operator <=(const Wide<Bits, IsSigned>& lhs, const Wide<RBits, IsSigned>& rhs)
     {
+        static_assert(!IsSigned);
         // Start with the high order elements
         for (size_t i = std::max(lhs.ElementCount, rhs.ElementCount) - 1; i != (size_t)-1; --i)
         {
@@ -402,7 +407,7 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr bool operator !=(const Wide& lhs, const Wide<Base, RBits>& rhs)
+    friend constexpr bool operator !=(const Wide& lhs, const Wide<RBits, IsSigned>& rhs)
     {
         for (size_t i = 0; i < std::max(lhs.ElementCount, rhs.ElementCount); ++i)
         {
@@ -417,19 +422,19 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr bool operator ==(const Wide& lhs, const Wide<Base, RBits>& rhs)
+    friend constexpr bool operator ==(const Wide& lhs, const Wide<RBits, IsSigned>& rhs)
     {
         return !operator!=(lhs, rhs);
     }
 
     template <size_t RBits>
-    friend constexpr bool operator >(const Wide& lhs, const Wide<Base, RBits>& rhs)
+    friend constexpr bool operator >(const Wide& lhs, const Wide<RBits, IsSigned>& rhs)
     {
         return rhs < lhs;
     }
 
     template <size_t RBits>
-    friend constexpr bool operator >=(const Wide& lhs, const Wide<Base, RBits>& rhs)
+    friend constexpr bool operator >=(const Wide& lhs, const Wide<RBits, IsSigned>& rhs)
     {
         return rhs <= lhs;
     }
