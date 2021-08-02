@@ -3,7 +3,7 @@
 #include "Wide.h"
 
 template <size_t Bits>
-constexpr Wide<Bits> AddModuloM(const Wide<Bits>& a, const Wide<Bits>& b, const Wide<Bits>& M)
+constexpr UIntW<Bits> AddModuloM(const UIntW<Bits>& a, const UIntW<Bits>& b, const UIntW<Bits>& M)
 {
     auto ab = a + b;
     if (ab >= M)
@@ -14,19 +14,19 @@ constexpr Wide<Bits> AddModuloM(const Wide<Bits>& a, const Wide<Bits>& b, const 
 }
 
 template <size_t Bits>
-constexpr Wide<Bits> MultiplyModuloM(const Wide<Bits>& a, const Wide<Bits>& b, const Wide<Bits>& M)
+constexpr UIntW<Bits> MultiplyModuloM(const UIntW<Bits>& a, const UIntW<Bits>& b, const UIntW<Bits>& M)
 {
     return (a * b).DivideUnsignedQR(M).second;
 }
 
 template <size_t Bits>
-constexpr Wide<Bits> SquareModuloM(const Wide<Bits>& a, const Wide<Bits>& M)
+constexpr UIntW<Bits> SquareModuloM(const UIntW<Bits>& a, const UIntW<Bits>& M)
 {
     return a.Squared().DivideUnsignedQR(M).second;
 }
 
 //template <size_t Bits, typename Base>
-//constexpr Wide<Base, Bits> DivideModuloPrime(const Wide<Base, Bits>& a, const Wide<Base, Bits>& b, const Wide<Base, Bits>& p)
+//constexpr UIntW<Base, Bits> DivideModuloPrime(const UIntW<Base, Bits>& a, const UIntW<Base, Bits>& b, const UIntW<Base, Bits>& p)
 //{
 //    // To compute x = a/b (mod p), first compute the extended gcd(b, p). 
 //    // Note that if p is prime and 1 <= b < p then gcd(b, p) = 1.
@@ -34,21 +34,67 @@ constexpr Wide<Bits> SquareModuloM(const Wide<Bits>& a, const Wide<Bits>& M)
 //    // So in the case that u = 1, we get s, t such that sb + tp = 1, i.e. sb = 1 (mod p).
 //    // Then sab = a (mod p). So a/b = sa (mod p).
 //    const auto gcd = ExtendedBinaryGCD(b, p); // TODO
-//    assert(gcd.v == Wide<Base, Bits>(1));
+//    assert(gcd.v == UIntW<Base, Bits>(1));
 //    const auto s = gcd.a;
 //    return MultiplyModuloM(s, a, p);
 //}
 
-template <uint32_t... p0x>
+template <const char* str>
+constexpr size_t GetBitCount()
+{
+    size_t bitCount = 0;
+    for (auto ichar = 0; str[ichar] != '\0'; ++ichar)
+    {
+        if (str[ichar] == ' ')
+            continue;
+        if ((str[ichar] >= 'A' && str[ichar] <= 'F') ||
+            (str[ichar] >= 'a' && str[ichar] <= 'f') ||
+            (str[ichar] >= '0' && str[ichar] <= '9'))
+            bitCount += 4;
+        else
+            throw;
+    }
+    return bitCount;
+}
+
+template <const char* str, typename Base = uint32_t>
+constexpr auto GetUIntArray()
+{
+    constexpr size_t Bits = GetBitCount<str>();
+    constexpr size_t BitsPerElement = sizeof(Base) * 8;
+    constexpr size_t Elements = (Bits + BitsPerElement - 1) / BitsPerElement;
+    std::array<Base, Elements> rv = {};
+    int nibble = 0, index = (Bits + 3) / 4 - 1;
+    for (auto ichar = 0; str[ichar] != '\0'; ++ichar)
+    {
+        if (str[ichar] >= 'A' && str[ichar] <= 'F')
+            nibble = str[ichar] - 'A' + 0x0A;
+        else if (str[ichar] >= 'a' && str[ichar] <= 'f')
+            nibble = str[ichar] - 'a' + 0x0A;
+        else if (str[ichar] >= '0' && str[ichar] <= '9')
+            nibble = str[ichar] - '0';
+        else if (str[ichar] == ' ')
+            continue;
+        else
+            throw;
+        if (index < 0)
+            throw;
+        auto lshift = (index & 7) << 2;
+        rv[index / 8] |= nibble << lshift;
+        --index;
+    }
+    return rv;
+}
+
+template <const char* p0x>
 class Fp
 {
 public:
-    static constexpr size_t ElementCount = sizeof...(p0x);
-    using Base = Wide<256>::Base;
-    static constexpr size_t Bits = 8 * sizeof(Base) * ElementCount;
-    using Type = Wide<Bits, false>;
+    static constexpr size_t Bits = GetBitCount<p0x>();
+    using Type = UIntW<Bits>;
+    using Base = Type::Base;
     using Array = typename Type::Array;
-    static constexpr Type p = Array{ p0x... };
+    static constexpr Type p = GetUIntArray<p0x, Base>();
 
     constexpr Fp() {}
     constexpr Fp(Base rhs) : x(rhs) {}

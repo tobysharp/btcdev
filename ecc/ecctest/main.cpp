@@ -193,15 +193,19 @@ public:
 
 namespace secp256k1
 {
+
     using Base = uint32_t;
-    using Fp = ::Fp<0xFFFFFC2F, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF>;
-    constexpr Fp aa = 0;
+    static constexpr char teststr[] = "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F";
+    using Fp = ::Fp<teststr>;
+    static_assert(GetBitCount<teststr>() == 256);
+
+    constexpr Fp aa;// = 0;
     constexpr Fp bb = 7;
 
-    using EC = EFp<Fp, aa, bb>;
+    using Pt = EFp<Fp, aa, bb>;
     constexpr Fp Gx = { { 0x16F81798, 0x59F2815B, 0x2DCE28D9, 0x029BFCDB, 0xCE870B07, 0x55A06295, 0xF9DCBBAC, 0x79BE667E } };
     constexpr Fp Gy = { { 0xFB10D4B8, 0x9C47D08F, 0xA6855419, 0xFD17B448, 0x0E1108A8, 0x5DA4FBFC, 0x26A3C465, 0x483ADA77 } };
-    constexpr EC G = { Gx, Gy };
+    constexpr Pt G = { Gx, Gy };
     static_assert(G.IsOnCurve(), "G not verified on secp256k1 curve.");
 
     constexpr Fp n  = { { 0xD0364141, 0xBFD25E8C, 0xAF48A03B, 0xBAAEDCE6, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF } };
@@ -213,7 +217,7 @@ namespace secp256k1
         Fp::Type d;
         do
         {
-            std::array<Base, Fp::ElementCount> arr;
+            Fp::Array arr;
             for (size_t i = 0; i < arr.size(); ++i)
                 arr[i] = rnd();
             d = arr;
@@ -231,6 +235,9 @@ namespace secp256k1
 
 int main()
 {
+    static constexpr char mystr[] = "DEADBEEF FFEEDDCC BA987654 32100000 DEADBEEF DEADBEEF DEADBEEF 00000001";
+    constexpr auto arr = GetUIntArray<mystr>();
+
     auto now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     std::mt19937 random(static_cast<unsigned int>(now));
     auto privateKey = secp256k1::GenerateRandomPrivateKey(random);
@@ -240,7 +247,7 @@ int main()
     //std::cout << "prime? " << (prime ? "yes " : "no ") << std::endl;
     //return 0;
 
-    secp256k1::EC G = secp256k1::G;
+    secp256k1::Pt G = secp256k1::G;
     bool yes = G.IsOnCurve();
     std::cout << (yes ? "good" : "bad") << std::endl;
     std::cout << G.x << std::endl << G.y << std::endl;
@@ -262,7 +269,8 @@ int main()
 
 
     */
-    using Fp5 = Fp <0x00000005, 0x00000000, 0x00000000>;
+    static constexpr char fivestr[] = "5";
+    using Fp5 = Fp <fivestr>;
     Fp5 a = 2, b = 3;
     const auto x = a.p;
     auto c = a * b; // = 1
