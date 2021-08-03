@@ -3,14 +3,21 @@
 #include "Wide.h"
 
 template <size_t Bits>
+constexpr UIntW<Bits> SubtractModuloM(const UIntW<Bits>& a, const UIntW<Bits>& b, const UIntW<Bits>& M)
+{
+    if (a < b)
+        return a + M - b;
+    else
+        return a - b;
+}
+
+template <size_t Bits>
 constexpr UIntW<Bits> AddModuloM(const UIntW<Bits>& a, const UIntW<Bits>& b, const UIntW<Bits>& M)
 {
     auto ab = a + b;
     if (ab >= M)
         ab -= M;
-    return ab.Truncate<Bits>();
-    //const auto [a_b, overflow] = a.AddWithCarry(b);
-    //return (overflow || a_b >= M) ? a_b - M : a_b;
+    return ab;
 }
 
 template <size_t Bits>
@@ -25,19 +32,70 @@ constexpr UIntW<Bits> SquareModuloM(const UIntW<Bits>& a, const UIntW<Bits>& M)
     return a.Squared().DivideUnsignedQR(M).second;
 }
 
-//template <size_t Bits, typename Base>
-//constexpr UIntW<Base, Bits> DivideModuloPrime(const UIntW<Base, Bits>& a, const UIntW<Base, Bits>& b, const UIntW<Base, Bits>& p)
-//{
-//    // To compute x = a/b (mod p), first compute the extended gcd(b, p). 
-//    // Note that if p is prime and 1 <= b < p then gcd(b, p) = 1.
-//    // The extended GCD algorithm computes s, t, u such that sb + tp = u where u = gdc(b, p).
-//    // So in the case that u = 1, we get s, t such that sb + tp = 1, i.e. sb = 1 (mod p).
-//    // Then sab = a (mod p). So a/b = sa (mod p).
-//    const auto gcd = ExtendedBinaryGCD(b, p); // TODO
-//    assert(gcd.v == UIntW<Base, Bits>(1));
-//    const auto s = gcd.a;
-//    return MultiplyModuloM(s, a, p);
-//}
+template <size_t Bits>
+inline constexpr bool IsEven(const UIntW<Bits>& x)
+{
+    return (x & 1) == 0;
+}
+
+// Given p odd, and 0 <= x < p, return y s.t. y = x/2 (mod p)
+template <size_t Bits>
+inline constexpr UIntW<Bits> HalfModuloOdd(const UIntW<Bits>& x, const UIntW<Bits>& p)
+{
+    /*
+    * y = x/2 mod p
+    * 2y = x mod p
+    * If x is even, y = x/2 <= x < p is exact
+    * If x is odd, y = (x+p)/2 < p is exact
+    */
+    if (IsEven(x))
+        return x >> 1;
+    else
+        return (x + p) >> 1;
+}
+
+// For an odd prime p, and b < p, return x s.t. xb = 1 (mod p)
+// (Actually, this should work for all odd p, even composite.)
+// An optimized version can be seen here: https://eprint.iacr.org/2020/972.pdf
+template <size_t Bits>
+inline constexpr UIntW<Bits> InvertModuloPrime(const UIntW<Bits>& b, const UIntW<Bits>& p)
+{
+    UIntW<Bits> aa = b, uu = 1, bb = p, vv = 0;
+    while (aa != 0)
+    {
+        if (IsEven(aa))
+        {
+            aa >>= 1;
+            uu = HalfModuloOdd(uu, p);
+        }
+        else
+        {
+            if (aa < bb)
+            {
+                std::swap(aa, bb);
+                std::swap(uu, vv);
+            }
+            aa = (aa - bb) >> 1;
+            const auto num = uu >= vv ? uu - vv : UIntW<Bits>(uu + p - vv);
+            uu = HalfModuloOdd(num, p);
+        }
+    }
+    if (bb != 1)
+        throw std::runtime_error("Value not invertible mod p");
+    return vv;
+}
+
+template <size_t Bits>
+constexpr UIntW<Bits> DivideModuloPrime(const UIntW<Bits>& a, const UIntW<Bits>& b, const UIntW<Bits>& p)
+{
+    // To compute x = a/b (mod p), first compute the extended gcd(b, p). 
+    // Note that if p is prime and 1 <= b < p then gcd(b, p) = 1.
+    // The extended GCD algorithm computes s, t, u such that sb + tp = u where u = gdc(b, p).
+    // So in the case that u = 1, we get s, t such that sb + tp = 1, i.e. sb = 1 (mod p).
+    // Then sab = a (mod p). So a/b = sa (mod p).
+    const auto s = InvertModuloPrime(b, p);
+    return MultiplyModuloM(s, a, p);
+}
 
 template <const char* str>
 constexpr size_t GetBitCount()
@@ -113,7 +171,7 @@ public:
 
     friend constexpr Fp operator -(const Fp& lhs)
     {
-        return p - lhs.x;
+        return (p - lhs.x).Truncate<Bits>();
     }
 
     friend constexpr Fp operator +(const Fp& lhs, const Fp& rhs)
@@ -136,10 +194,10 @@ public:
         return SquareModuloM(x, p);
     }
 
-    //friend constexpr Fp operator /(const Fp& lhs, const Fp& rhs)
-    //{
-    //    return DivideModuloPrime(lhs.x, rhs.x, p);
-    //}
+    friend constexpr Fp operator /(const Fp& lhs, const Fp& rhs)
+    {
+        return DivideModuloPrime(lhs.x, rhs.x, p);
+    }
 
     friend constexpr std::ostream& operator <<(std::ostream& s, const Fp& rhs)
     {

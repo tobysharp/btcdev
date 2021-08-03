@@ -54,7 +54,16 @@ public:
     {
         EnforceBitLimit();
     }
+    template <size_t RBits> constexpr UIntW(const UIntW<RBits>& rhs)
+    {
+        size_t copySize = std::min(rhs.m_a.size(), m_a.size());
+        for (size_t i = copySize; i < rhs.m_a.size(); ++i)
+            if (rhs.m_a[i] != 0)
+                throw std::runtime_error("Overflow! Use Truncate to explicitly remove high order bits.");
 
+        std::copy(rhs.m_a.begin(), rhs.m_a.begin() + copySize, m_a.begin());
+        std::fill(m_a.begin() + copySize, m_a.end(), (Base)0);
+    }
     constexpr const Array& Elements() const { return m_a; }
     constexpr Base& operator[](size_t i) { return m_a[i]; }
     constexpr const Base& operator[](size_t i) const { return m_a[i]; }
@@ -202,9 +211,31 @@ public:
         return rv;
     }
 
+    constexpr UIntW<Bits> ShiftLogicalRight(size_t shift) const
+    {
+        UIntW<Bits> rv;
+        Base prev = 0;
+        for (size_t i = ElementCount - 1; i != (size_t)-1; --i)
+        {
+            rv[i] = (m_a[i] >> shift) | prev;
+            prev = m_a[i] << (BitsPerElement - shift);
+        }
+        return rv;
+    }
+
+    constexpr UIntW<Bits> operator >>(size_t Shift) const
+    {
+        return ShiftLogicalRight(Shift);
+    }
+
     constexpr UIntW& operator <<=(size_t Shift)
     {
         return operator =(ShiftLeftTruncate(Shift));
+    }
+
+    constexpr UIntW& operator >>=(size_t Shift)
+    {
+        return operator =(ShiftLogicalRight(Shift));
     }
 
     constexpr UIntW& operator =(UIntW&& rhs)
@@ -331,7 +362,7 @@ public:
     template <size_t RBits>
     friend constexpr auto operator -(const UIntW<Bits>& lhs, const UIntW<RBits>& rhs)
     {
-        return lhs.TypeExtend<std::max(Bits, RBits)>() + (-rhs.TypeExtend<std::max(Bits, RBits)>());
+        return lhs.AddTruncate(-rhs.ZeroExtend<std::max(Bits, RBits)>());
     }
 
     template <size_t RBits>
@@ -429,6 +460,11 @@ public:
     friend constexpr bool operator >=(const UIntW& lhs, const UIntW<RBits>& rhs)
     {
         return rhs <= lhs;
+    }
+
+    Base operator &(const Base& rhs) const
+    {
+        return m_a[0] & rhs;
     }
 
     friend std::ostream& operator <<(std::ostream& s, const UIntW& rhs)

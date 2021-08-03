@@ -121,28 +121,28 @@ public:
     }
 
     // Add two points on the curve
-    //friend EFp operator +(const EFp& lhs, const EFp& rhs)
-    //{
-    //    if (lhs.IsInfinity() || rhs.IsInfinity())
-    //        return { lhs.x + rhs.x, lhs.y + rhs.y };
-    //    else if (lhs.x != rhs.x)
-    //    {
-    //        const Fp lambda = (rhs.y - lhs.y) / (rhs.x - lhs.x);
-    //        const Fp x3 = lambda.Squared() - lhs.x - rhs.x;
-    //        const Fp y3 = lambda * (lhs.x - x3) - lhs.y;
-    //        return { x3, y3 };
-    //    }
-    //    else if (lhs.y == -rhs.y)
-    //        return {};
-    //    else
-    //    {
-    //        // Add a (non-infinity) point to itself 
-    //        const Fp lambda = (3 * lhs.x.Squared() + a) / (lhs.y + lhs.y);
-    //        const Fp x3 = lambda.Squared() - (lhs.x + lhs.x);
-    //        const Fp y3 = lambda * (lhs.x - x3) - lhs.y;
-    //        return { x3, y3 };
-    //    }
-    //}
+    friend EFp operator +(const EFp& lhs, const EFp& rhs)
+    {
+        if (lhs.IsInfinity() || rhs.IsInfinity())
+            return { lhs.x + rhs.x, lhs.y + rhs.y };
+        else if (lhs.x != rhs.x)
+        {
+            const Fp lambda = (rhs.y - lhs.y) / (rhs.x - lhs.x);
+            const Fp x3 = lambda.Squared() - lhs.x - rhs.x;
+            const Fp y3 = lambda * (lhs.x - x3) - lhs.y;
+            return { x3, y3 };
+        }
+        else if (lhs.y == -rhs.y)
+            return {};
+        else
+        {
+            // Add a (non-infinity) point to itself 
+            const Fp lambda = (3 * lhs.x.Squared() + a) / (lhs.y + lhs.y);
+            const Fp x3 = lambda.Squared() - (lhs.x + lhs.x);
+            const Fp y3 = lambda * (lhs.x - x3) - lhs.y;
+            return { x3, y3 };
+        }
+    }
 
     EFp& operator =(const EFp& rhs)
     {
@@ -158,26 +158,26 @@ public:
         return *this;
     }
 
-    //EFp& operator +=(const EFp& rhs)
-    //{
-    //    return *this = *this + rhs;
-    //}
+    EFp& operator +=(const EFp& rhs)
+    {
+        return *this = *this + rhs;
+    }
 
     // Scalar multiplication
-    //friend EFp operator *(const Fp& scalar, const EFp& pt)
-    //{
-    //    // Scalar multiplication of elliptic curve points can be computed efficiently using the 
-    //    // addition rule together with the double-and-add algorithm
-    //    EFp sum;
-    //    EFp power = pt;
-    //    for (size_t bitIndex = 0; bitIndex < scalar.x.BitCount; ++bitIndex)
-    //    {
-    //        if (scalar.x.GetBit(bitIndex))
-    //            sum += power;
-    //        power += power;
-    //    }
-    //    return sum;
-    //}
+    friend EFp operator *(const Fp& scalar, const EFp& pt)
+    {
+        // Scalar multiplication of elliptic curve points can be computed efficiently using the 
+        // addition rule together with the double-and-add algorithm
+        EFp sum;
+        EFp power = pt;
+        for (size_t bitIndex = 0; bitIndex < scalar.x.BitCount; ++bitIndex)
+        {
+            if (scalar.x.GetBit(bitIndex))
+                sum += power;
+            power += power;
+        }
+        return sum;
+    }
 
     constexpr bool IsOnCurve() const
     {
@@ -193,23 +193,22 @@ public:
 
 namespace secp256k1
 {
+    namespace str
+    {
+        // Values copied from p9 of https://www.secg.org/sec2-v2.pdf
+        static constexpr char p[]  = "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F";
+        static constexpr char Gx[] = "79BE667E F9DCBBAC 55A06295 CE870B07 029BFCDB 2DCE28D9 59F2815B 16F81798";
+        static constexpr char Gy[] = "483ADA77 26A3C465 5DA4FBFC 0E1108A8 FD17B448 A6855419 9C47D08F FB10D4B8";
+        static constexpr char n[]  = "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141";
+    }
+    using Fp = ::Fp<str::p>;
+    using Pt = EFp<Fp, 0, 7>;
 
-    using Base = uint32_t;
-    static constexpr char teststr[] = "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F";
-    using Fp = ::Fp<teststr>;
-    static_assert(GetBitCount<teststr>() == 256);
+    constexpr Fp n  = GetUIntArray<str::n>();
+    constexpr Pt G = { GetUIntArray<str::Gx>(), GetUIntArray<str::Gy>() };
+    constexpr Fp::Base h = 1;
 
-    constexpr Fp aa;// = 0;
-    constexpr Fp bb = 7;
-
-    using Pt = EFp<Fp, aa, bb>;
-    constexpr Fp Gx = { { 0x16F81798, 0x59F2815B, 0x2DCE28D9, 0x029BFCDB, 0xCE870B07, 0x55A06295, 0xF9DCBBAC, 0x79BE667E } };
-    constexpr Fp Gy = { { 0xFB10D4B8, 0x9C47D08F, 0xA6855419, 0xFD17B448, 0x0E1108A8, 0x5DA4FBFC, 0x26A3C465, 0x483ADA77 } };
-    constexpr Pt G = { Gx, Gy };
     static_assert(G.IsOnCurve(), "G not verified on secp256k1 curve.");
-
-    constexpr Fp n  = { { 0xD0364141, 0xBFD25E8C, 0xAF48A03B, 0xBAAEDCE6, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF } };
-    constexpr Base h = 1;
 
     template <typename Rnd>
     inline Fp GenerateRandomPrivateKey(Rnd& rnd)
@@ -225,10 +224,10 @@ namespace secp256k1
         return d;
     }
 
-    //inline EC PrivateKeyToPublicKey(const Fp& privateKey)
-    //{
-    //    return privateKey * G;
-    //}
+    inline Pt PrivateKeyToPublicKey(const Fp& privateKey)
+    {
+        return privateKey * G;
+    }
 }
 
 #include <cassert>
@@ -238,17 +237,26 @@ int main()
     static constexpr char mystr[] = "DEADBEEF FFEEDDCC BA987654 32100000 DEADBEEF DEADBEEF DEADBEEF 00000001";
     constexpr auto arr = GetUIntArray<mystr>();
 
+    static constexpr char fivestr[] = "5";
+    using Fp5 = Fp <fivestr>;
+    Fp5 a = 2, b = 3;
+    const auto x = a.p;
+    auto c = a * b; // = 1
+    std::cout << c << std::endl;
+    auto ainv = InvertModuloPrime(a.x, x);
+    auto binv = InvertModuloPrime(b.x, x);
+
     auto now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     std::mt19937 random(static_cast<unsigned int>(now));
     auto privateKey = secp256k1::GenerateRandomPrivateKey(random);
-    //auto publicKey = secp256k1::PrivateKeyToPublicKey(privateKey);
+    auto publicKey = secp256k1::PrivateKeyToPublicKey(privateKey);
 
     //bool prime = IsPrime(secp256k1::Fp::p);
     //std::cout << "prime? " << (prime ? "yes " : "no ") << std::endl;
     //return 0;
 
     secp256k1::Pt G = secp256k1::G;
-    bool yes = G.IsOnCurve();
+    bool yes = publicKey.IsOnCurve();
     std::cout << (yes ? "good" : "bad") << std::endl;
     std::cout << G.x << std::endl << G.y << std::endl;
     /* secp256k1 
@@ -269,12 +277,6 @@ int main()
 
 
     */
-    static constexpr char fivestr[] = "5";
-    using Fp5 = Fp <fivestr>;
-    Fp5 a = 2, b = 3;
-    const auto x = a.p;
-    auto c = a * b; // = 1
-    std::cout << c << std::endl;
 
     /*
     Wide<9, uint8_t> a = { { 0xFF, 0x03 } };
