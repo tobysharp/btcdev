@@ -133,31 +133,38 @@ inline Hash ComputeHash(const uint8_t* byteStream, size_t sizeInBytes)
 
     // There remain between 0 and 511 bits of the message to process ('l' bits)
     // In addition, we must add the required padding bits to the message, starting with a '1' bit and 
-    // 'k' zero bits, where  l + 1 + k  = 448 (mod 512),
+    // 'k' zero bits, where l + 1 + k  = 448 (mod 512),
     // and followed by 64 bits representing the number of bits in the whole message.
     // In total then there are (l + k + 65) bits left to process, and the maximum value of l+k is 959.
     // So there are at most 1024 bits = 128 bytes = 32 words = 2 blocks left to process.
     // In particular, there are a whole number of blocks left to process, and that number is 1 or 2.
     // If l <= 447 then we need just one block, and if l >= 448 then we need two blocks.
+    
+    // Initialize blocks to zero bits
     std::fill(localWords.begin(), localWords.end(), 0);
     uint8_t* localBytes = reinterpret_cast<uint8_t*>(&localWords[0]);
     const uint32_t bytesRemaining = static_cast<uint32_t>(sizeInBytes - bytesProcessed);
+
+    // Copy the message data while reversing endian-ness
     for (uint32_t iByte = 0; iByte < bytesRemaining; ++iByte)
         localBytes[ReverseEndianByteIndex(iByte)] = byteStream[bytesProcessed + iByte];
 
+     // Add the one bit after lBits of message data
+    localBytes[ReverseEndianByteIndex(bytesRemaining)] = 0x80;
+
+    // Add the message size in bits
     const uint32_t lBits = bytesRemaining << 3;
     const uint32_t zeroBits = lBits <= 447 ? 447 - lBits : 512 + 447 - lBits;
-    const uint64_t messageSizeInBits = sizeInBytes << 3;
     const uint32_t messageSizeWordPos = (lBits + 1 + zeroBits) >> 5;
+    const uint64_t messageSizeInBits = sizeInBytes << 3;
     const uint32_t messageSizeLoWord = static_cast<uint32_t>(messageSizeInBits);
     const uint32_t messageSizeHiWord = static_cast<uint32_t>(messageSizeInBits >> 32);
-
-    // Add the one bit after lBits of message data
-    localBytes[ReverseEndianByteIndex(bytesRemaining)] = 0x80;
     localWords[messageSizeWordPos] = messageSizeHiWord;
     localWords[messageSizeWordPos + 1] = messageSizeLoWord;
+
+    // Process the remaining blocks
     Process16WordBlock(&localWords[0], W, H);
-    if (lBits >= 448)
+    if (lBits >= 448) // messageSizeWordPos + 1 >= 16
         Process16WordBlock(&localWords[16], W, H);
 
     return H;
@@ -167,7 +174,7 @@ inline Hash ComputeHash(const uint8_t* byteStream, size_t sizeInBytes)
 
 inline std::ostream& operator <<(std::ostream& os, const SHA256::Hash& h)
 {
-    os << std::hex << std::uppercase;
+    os << std::hex;
     for (auto x : h)
         os << x << ' ';
     return os;
