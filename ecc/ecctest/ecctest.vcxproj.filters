@@ -6,5 +6,8 @@
   <ItemGroup>
     <ClInclude Include="Wide.h" />
     <ClInclude Include="Fp.h" />
+    <ClInclude Include="EC.h" />
+    <ClInclude Include="secp256k1.h" />
+    <ClInclude Include="sha256.h" />
   </ItemGroup>
 </Project>

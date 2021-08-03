@@ -1,4 +1,4 @@
-#include "Fp.h"
+#include "secp256k1.h"
 
 #include <iostream>
 #include <random>
@@ -96,213 +96,29 @@ inline bool ValidateECDomainParams(
         return false;
 }
 
-// A point on an elliptic curve
-template <typename Fp, Fp a, Fp b>
-class EFp
-{
-    static_assert(4 * a.Squared() * a + 27 * b.Squared() != 0, "Invalid elliptic curve parameters a, b");
-public:
-    using Multi = typename Fp::Type;
-    constexpr static const Multi p = Fp::p;
-    
-    constexpr EFp() {}
-    constexpr EFp(const EFp& rhs) : x(rhs.x), y(rhs.y) {}
-    constexpr EFp(EFp&& rhs) : x(std::move(rhs.x)), y(std::move(rhs.y)) {}
-    constexpr EFp(const Fp& x, const Fp& y) : x(x), y(y) {}
-
-    constexpr bool IsInfinity() const
-    {
-        return x == 0 && y == 0;
-    }
-
-    friend EFp operator -(const EFp& lhs) 
-    {
-        return { lhs.x, -lhs.y };
-    }
-
-    // Add two points on the curve
-    friend EFp operator +(const EFp& lhs, const EFp& rhs)
-    {
-        if (lhs.IsInfinity() || rhs.IsInfinity())
-            return { lhs.x + rhs.x, lhs.y + rhs.y };
-        else if (lhs.x != rhs.x)
-        {
-            const Fp lambda = (rhs.y - lhs.y) / (rhs.x - lhs.x);
-            const Fp x3 = lambda.Squared() - lhs.x - rhs.x;
-            const Fp y3 = lambda * (lhs.x - x3) - lhs.y;
-            return { x3, y3 };
-        }
-        else if (lhs.y == -rhs.y)
-            return {};
-        else
-        {
-            // Add a (non-infinity) point to itself 
-            const Fp lambda = (3 * lhs.x.Squared() + a) / (lhs.y + lhs.y);
-            const Fp x3 = lambda.Squared() - (lhs.x + lhs.x);
-            const Fp y3 = lambda * (lhs.x - x3) - lhs.y;
-            return { x3, y3 };
-        }
-    }
-
-    EFp& operator =(const EFp& rhs)
-    {
-        x = rhs.x;
-        y = rhs.y;
-        return *this;
-    }
-
-    EFp& operator =(EFp&& rhs)
-    {
-        x = std::move(rhs.x);
-        y = std::move(rhs.y);
-        return *this;
-    }
-
-    EFp& operator +=(const EFp& rhs)
-    {
-        return *this = *this + rhs;
-    }
-
-    // Scalar multiplication
-    friend EFp operator *(const Fp& scalar, const EFp& pt)
-    {
-        // Scalar multiplication of elliptic curve points can be computed efficiently using the 
-        // addition rule together with the double-and-add algorithm
-        EFp sum;
-        EFp power = pt;
-        for (size_t bitIndex = 0; bitIndex < scalar.x.BitCount; ++bitIndex)
-        {
-            if (scalar.x.GetBit(bitIndex))
-                sum += power;
-            power += power;
-        }
-        return sum;
-    }
-
-    constexpr bool IsOnCurve() const
-    {
-        if (IsInfinity())
-            return true;
-        const auto lhs = y.Squared();
-        const auto rhs = (x.Squared() + a) * x + b;
-        return lhs == rhs;
-    }
-
-    Fp x, y;
-};
-
-namespace secp256k1
-{
-    namespace str
-    {
-        // Values copied from p9 of https://www.secg.org/sec2-v2.pdf
-        static constexpr char p[]  = "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F";
-        static constexpr char Gx[] = "79BE667E F9DCBBAC 55A06295 CE870B07 029BFCDB 2DCE28D9 59F2815B 16F81798";
-        static constexpr char Gy[] = "483ADA77 26A3C465 5DA4FBFC 0E1108A8 FD17B448 A6855419 9C47D08F FB10D4B8";
-        static constexpr char n[]  = "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141";
-    }
-    using Fp = ::Fp<str::p>;
-    using Pt = EFp<Fp, 0, 7>;
-
-    constexpr Fp n  = GetUIntArray<str::n>();
-    constexpr Pt G = { GetUIntArray<str::Gx>(), GetUIntArray<str::Gy>() };
-    constexpr Fp::Base h = 1;
-
-    static_assert(G.IsOnCurve(), "G not verified on secp256k1 curve.");
-
-    template <typename Rnd>
-    inline Fp GenerateRandomPrivateKey(Rnd& rnd)
-    {
-        Fp::Type d;
-        do
-        {
-            Fp::Array arr;
-            for (size_t i = 0; i < arr.size(); ++i)
-                arr[i] = rnd();
-            d = arr;
-        } while (d.IsZero() || d >= n.x);
-        return d;
-    }
-
-    inline Pt PrivateKeyToPublicKey(const Fp& privateKey)
-    {
-        return privateKey * G;
-    }
-}
-
 #include <cassert>
 
 int main()
 {
-    static constexpr char mystr[] = "DEADBEEF FFEEDDCC BA987654 32100000 DEADBEEF DEADBEEF DEADBEEF 00000001";
-    constexpr auto arr = GetUIntArray<mystr>();
-
-    static constexpr char fivestr[] = "5";
-    using Fp5 = Fp <fivestr>;
-    Fp5 a = 2, b = 3;
-    const auto x = a.p;
-    auto c = a * b; // = 1
-    std::cout << c << std::endl;
-    auto ainv = InvertModuloPrime(a.x, x);
-    auto binv = InvertModuloPrime(b.x, x);
-
     auto now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     std::mt19937 random(static_cast<unsigned int>(now));
-    auto privateKey = secp256k1::GenerateRandomPrivateKey(random);
-    auto publicKey = secp256k1::PrivateKeyToPublicKey(privateKey);
-
-    //bool prime = IsPrime(secp256k1::Fp::p);
-    //std::cout << "prime? " << (prime ? "yes " : "no ") << std::endl;
-    //return 0;
-
-    secp256k1::Pt G = secp256k1::G;
-    bool yes = publicKey.IsOnCurve();
-    std::cout << (yes ? "good" : "bad") << std::endl;
-    std::cout << G.x << std::endl << G.y << std::endl;
-    /* secp256k1 
     
-       p = FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F
-       a = 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-       b = 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000007
-       G = 04 
-           79BE667E F9DCBBAC 55A06295 CE870B07 029BFCDB 2DCE28D9 59F2815B 16F81798 
-           483ADA77 26A3C465 5DA4FBFC 0E1108A8 FD17B448 A6855419 9C47D08F FB10D4B8
-       n = FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141
-       h = 01
+    // Generate a private key from random bits
+    const auto privateKey = secp256k1::GenerateRandomPrivateKey(random);
 
-       Want to write:
+    // A public key is a point on the EC that is uniquely determined by the private key
+    const auto publicKey = secp256k1::PrivateKeyToPublicKey(privateKey);
 
-       using EC = EFp<secp256k1_p, secp256k1_a, secp256k1_b>;
-       using secp256k1 = ECDomain<EC, secp256k1_G, secp256k1_n, secp256k1_h>;
+    if (!secp256k1::IsPublicKeyValid(publicKey))
+        throw std::runtime_error("Invalid public key");
+
+    // The key pair is (private, public)
+    const auto keyPair = std::make_pair(privateKey, publicKey);
 
 
-    */
+    // sign, verify, 
+    // to/from BIP39
+    // Bitcoin address
 
-    /*
-    Wide<9, uint8_t> a = { { 0xFF, 0x03 } };
-    Wide<9, uint8_t> b = { { 0xFF, 0x03 } };
-    auto [q, r] = a.DivideQR(b);
-
-    typedef Fp<4, uint8_t, 5> Fp5;
-    Fp5 a = { 2 }, b = { 3 };
-    auto c = a * b;
-
-    std::cout << "a = " << a << std::endl;
-    std::cout << "b = " << b << std::endl;
-    auto c = a - b;
-    auto d = Wide<8, uint8_t>{ 0x80 }.AddExtend(Wide<8, uint8_t>{0x7F});
-    std::cout << "c = " << c << std::endl;
-    std::cout << "d = " << d << std::endl;
-    auto ab = a.MultiplyExtend(b);
-    auto ab2 = a * b;
-
-    Wide<256, uint32_t> b256 = 0;
-    auto b256_2 = b256;
-    Wide<1> b1;
-    Wide<64> b64;
-    Wide<65> b65;
-    std::cout << b256 << std::endl;
-    std::cout << b1 << std::endl;
-    std::cout << b64 << std::endl;
-    std::cout << b65 << std::endl;*/
+    std::cout << "Ok" << std::endl;
 }
