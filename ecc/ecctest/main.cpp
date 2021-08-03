@@ -1,4 +1,5 @@
 #include "secp256k1.h"
+#include "sha256.h"
 
 #include <iostream>
 #include <random>
@@ -100,6 +101,10 @@ inline bool ValidateECDomainParams(
 
 int main()
 {
+    const char* abc = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    auto hash = SHA256::ComputeHash(reinterpret_cast<const uint8_t*>(abc), strlen(abc));
+    std::cout << hash << std::endl;
+
     auto now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     std::mt19937 random(static_cast<unsigned int>(now));
     

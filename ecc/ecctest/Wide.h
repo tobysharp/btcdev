@@ -77,7 +77,7 @@ public:
         return true;
     }
 
-    size_t ActualBitCount() const
+    constexpr size_t ActualBitCount() const
     {
         for (size_t elementIndex = ElementCount - 1; elementIndex != (size_t)-1; --elementIndex)
         {
