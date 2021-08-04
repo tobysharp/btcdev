@@ -484,7 +484,7 @@ public:
         return rhs <= lhs;
     }
 
-    Base operator &(const Base& rhs) const
+    constexpr Base operator &(const Base& rhs) const
     {
         return m_a[0] & rhs;
     }
@@ -492,15 +492,8 @@ public:
     friend std::ostream& operator <<(std::ostream& s, const UIntW& rhs)
     {
         constexpr int charsPerElement = BitsPerElement / 4;
-        auto i = rhs.m_a.rbegin();
-        s << "0x ";
-        while (true)
-        {
-            s << std::hex << std::setw(charsPerElement) << std::setfill('0') << static_cast<size_t>(*i++);
-            if (i == rhs.m_a.rend())
-                break;
-            s << " ";
-        }
+        for (auto i = rhs.m_a.rbegin(); i != rhs.m_a.rend(); ++i)
+            s << std::hex << std::setw(charsPerElement) << std::setfill('0') << *i;
         return s;
     }
 

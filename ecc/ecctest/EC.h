@@ -70,19 +70,26 @@ public:
     }
 
     // Scalar multiplication
-    friend EFp operator *(const Fp& scalar, const EFp& pt)
+    template <size_t Bits>
+    friend EFp operator *(const UIntW<Bits>& scalar, const EFp& pt)
     {
         // Scalar multiplication of elliptic curve points can be computed efficiently using the 
         // addition rule together with the double-and-add algorithm
         EFp sum;
         EFp power = pt;
-        for (size_t bitIndex = 0; bitIndex < scalar.x.BitCount; ++bitIndex)
+        for (size_t bitIndex = 0; bitIndex < scalar.BitCount; ++bitIndex)
         {
-            if (scalar.x.GetBit(bitIndex))
+            if (scalar.GetBit(bitIndex))
                 sum += power;
             power += power;
         }
         return sum;
+    }
+
+    template <const char* p0x>
+    friend EFp operator *(const ::Fp<p0x>& scalar, const EFp& pt)
+    {
+        return scalar.x * pt;
     }
 
     constexpr bool IsOnCurve() const
@@ -92,6 +99,11 @@ public:
         const auto lhs = y.Squared();
         const auto rhs = (x.Squared() + a) * x + b;
         return lhs == rhs;
+    }
+
+    friend std::ostream& operator <<(std::ostream& os, const EFp& pt)
+    {
+        return os << "04" << pt.x << pt.y;
     }
 
     Fp x, y;

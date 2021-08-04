@@ -88,7 +88,7 @@ namespace ModuloArithmetic
     }
 
     template <size_t Bits>
-    constexpr UIntW<Bits> DivideModuloPrime(const UIntW<Bits>& a, const UIntW<Bits>& b, const UIntW<Bits>& p)
+    constexpr UIntW<Bits> DivideModuloOdd(const UIntW<Bits>& a, const UIntW<Bits>& b, const UIntW<Bits>& p)
     {
         // To compute x = a/b (mod p), first compute the extended gcd(b, p). 
         // Note that if p is prime and 1 <= b < p then gcd(b, p) = 1.
@@ -159,11 +159,31 @@ public:
     using Base = Type::Base;
     using Array = typename Type::Array;
     static constexpr Type p = Parse::GetUIntArray<p0x, Base>();
+    static_assert((p & 1) != 0);
 
     constexpr Fp() {}
-    constexpr Fp(Base rhs) : x(rhs) {}
-    constexpr Fp(const Array& rhs) : x(rhs) {}
-    constexpr Fp(const Type& rhs) : x(rhs) {}
+    constexpr Fp(const Base& rhs) : Fp(Type{ rhs }) {}
+    constexpr Fp(const Array& rhs) : Fp(Type{ rhs }) {}
+    template <const char* p1x> constexpr Fp(const Fp<p1x>& rhs) : Fp(rhs.x) {}
+    constexpr Fp(const Fp& rhs) : x(rhs.x) {}
+    constexpr Fp(Fp&& rhs) : x(std::move(rhs.x)) {}
+    constexpr Fp(const Type& rhs) : x(rhs) 
+    {
+        if (x >= p)
+            x = x.DivideUnsignedQR(p).second;
+    }
+
+    Fp& operator =(const Fp& rhs)
+    {
+        x = rhs.x;
+        return *this;
+    }
+
+    Fp& operator =(Fp&& rhs)
+    {
+        x = std::move(rhs.x);
+        return *this;
+    }
 
     bool constexpr operator !=(const Fp& rhs) const
     {
@@ -202,7 +222,12 @@ public:
 
     friend constexpr Fp operator /(const Fp& lhs, const Fp& rhs)
     {
-        return ModuloArithmetic::DivideModuloPrime(lhs.x, rhs.x, p);
+        return ModuloArithmetic::DivideModuloOdd(lhs.x, rhs.x, p);
+    }
+
+    Fp Inverse() const
+    {
+        return ModuloArithmetic::InvertModuloOdd(x, p);
     }
 
     friend constexpr std::ostream& operator <<(std::ostream& s, const Fp& rhs)

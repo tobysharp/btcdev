@@ -2,6 +2,7 @@
 
 #include "EC.h"
 #include "sha256.h"
+
 #include <random>
 
 namespace secp256k1
@@ -17,6 +18,7 @@ namespace secp256k1
         static constexpr char  n[] = "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141";
     }
     using Fp = ::Fp<str::p>;
+    using Fn = ::Fp<str::n>;
     using Wide = Fp::Type;
     constexpr Fp::Type p = Fp::p;
     constexpr Fp a = Parse::GetUIntArray<str::a>();
@@ -29,13 +31,13 @@ namespace secp256k1
     static_assert(G.IsOnCurve(), "G not verified on secp256k1 curve.");
 
     template <typename Rnd>
-    inline Fp GenerateRandomPrivateKey(Rnd& rnd)
+    inline Fn GenerateRandomPrivateKey(Rnd& rnd)
     {
-        Fp::Type d;
+        Fn::Type d;
         std::uniform_int_distribution<Fp::Type::Base> uniform;
         do
         {
-            Fp::Array arr;
+            Fn::Array arr;
             for (size_t i = 0; i < arr.size(); ++i)
                 arr[i] = uniform(rnd);
             d = arr;
@@ -43,7 +45,7 @@ namespace secp256k1
         return d;
     }
 
-    inline Pt PrivateKeyToPublicKey(const Fp& privateKey)
+    inline Pt PrivateKeyToPublicKey(const Fn& privateKey)
     {
         return privateKey * G;
     }
@@ -61,47 +63,45 @@ namespace secp256k1
         return true;
     }
     
+    inline Wide HashToInt(const SHA256::Hash& hash)
+    {
+        auto H = hash;
+        std::reverse(H.begin(), H.end()); // Reverse words to have the correct endian-ness for conversion to integer
+        return H;
+    }
+
     template <typename Rnd>
-    inline Signature SignMessage(Rnd& rnd, const Fp& privateKey, const uint8_t* byteStream, size_t sizeInBytes)
+    inline Signature SignMessage(Rnd& rnd, const Fn& privateKey, const uint8_t* byteStream, size_t sizeInBytes)
     {
         while (true)
         {
-            Wide r;
-            Fp k;
-            do
-            {
-                k = GenerateRandomPrivateKey(rnd);
-                const Pt R = PrivateKeyToPublicKey(k);
-                r = R.x.x >= n ? (R.x.x - n) : R.x.x;
-            } while (r.IsZero());
-            SHA256::Hash H = SHA256::ComputeHash(byteStream, sizeInBytes);
-            std::reverse(H.begin(), H.end()); // Reverse words to have the correct endian-ness for conversion to integer
-            const Wide e = H;
-            const Wide rdU = ModuloArithmetic::MultiplyModuloM(r, privateKey.x, n);
-            const Wide e_rdU = ModuloArithmetic::AddModuloM(e, rdU, n);
-            const Wide kinv = ModuloArithmetic::InvertModuloOdd(k.x, n);
-            const Wide s = ModuloArithmetic::MultiplyModuloM(kinv, e_rdU, n);
-            if (!s.IsZero())
-                return { r, s };
+            const Fn k = GenerateRandomPrivateKey(rnd);
+            const Pt R = k * G;
+            const Fn r = R.x;
+            if (r == 0)
+                continue;
+            const auto H = SHA256::ComputeHash(byteStream, sizeInBytes);
+            const Fn e = HashToInt(H), d_U = privateKey;
+            const Fn s = (e + r * d_U) / k;
+            if (s != 0)
+                return { r.x, s.x };
         }
     }
 
     inline bool VerifySignature(const Pt& publicKey, const Signature& signature, const uint8_t* byteStream, size_t sizeInBytes)
     {
-        if (signature.first.IsZero() || signature.first >= n)
+        if (signature.first == 0 || signature.first >= n)
             return false;
-        if (signature.second.IsZero() || signature.second >= n)
+        if (signature.second == 0 || signature.second >= n)
             return false;
-        auto H = SHA256::ComputeHash(byteStream, sizeInBytes);
-        std::reverse(H.begin(), H.end()); // Reverse words to have the correct endian-ness for conversion to integer
-        const Wide e = H;
-        const Wide sinv = ModuloArithmetic::InvertModuloOdd(signature.second, n);
-        const Wide u1 = ModuloArithmetic::MultiplyModuloM(e, sinv, n);
-        const Wide u2 = ModuloArithmetic::MultiplyModuloM(signature.first, sinv, n);
+        const auto H = SHA256::ComputeHash(byteStream, sizeInBytes);
+        const Fn e = HashToInt(H), r = signature.first, s = signature.second;
+        const auto sinv = s.Inverse();
+        const auto u1 = e * sinv;
+        const auto u2 = r * sinv;
         const Pt R = u1 * G + u2 * publicKey;
         if (R.IsInfinity())
             return false;
-        const Wide v = R.x.x >= n ? R.x.x - n : R.x.x;
-        return signature.first == v;
+        return R.x.x == r.x;
     }
 }
