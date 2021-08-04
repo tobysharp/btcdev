@@ -60,7 +60,7 @@ namespace ModuloArithmetic
     // (Actually, this should work for all odd p, even composite.)
     // An optimized version can be seen here: https://eprint.iacr.org/2020/972.pdf
     template <size_t Bits>
-    inline constexpr UIntW<Bits> InvertModuloPrime(const UIntW<Bits>& b, const UIntW<Bits>& p)
+    inline constexpr UIntW<Bits> InvertModuloOdd(const UIntW<Bits>& b, const UIntW<Bits>& p)
     {
         UIntW<Bits> aa = b, uu = 1, bb = p, vv = 0;
         while (aa != 0)
@@ -95,7 +95,7 @@ namespace ModuloArithmetic
         // The extended GCD algorithm computes s, t, u such that sb + tp = u where u = gdc(b, p).
         // So in the case that u = 1, we get s, t such that sb + tp = 1, i.e. sb = 1 (mod p).
         // Then sab = a (mod p). So a/b = sa (mod p).
-        const auto s = InvertModuloPrime(b, p);
+        const auto s = InvertModuloOdd(b, p);
         return MultiplyModuloM(s, a, p);
     }
 }

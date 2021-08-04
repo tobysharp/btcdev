@@ -4,13 +4,27 @@
 // Implemented from the spec at https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
 
 #include <array>
+#include <ostream>
+
+namespace SHA256
+{
+    // 256 bits arranged in 8 DWORDs
+    using Hash = std::array<uint32_t, 8>; 
+
+    // Compute the SHA-256 hash of an arbitrary byte stream
+    Hash ComputeHash(const uint8_t* byteStream, size_t sizeInBytes);
+}
+
+// Write the hash digest to an output stream
+std::ostream& operator <<(std::ostream& os, const SHA256::Hash& h);
+
+
+/* Implementation follows */
+
 #include <algorithm>
 
 namespace SHA256
 {
-
-using Hash = std::array<uint32_t, 8>; // 256 bits arranged in 8 DWORDs, from lowest order to highest order
-
 namespace Detail
 {
     static constexpr Hash s_initialHash = { { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 } };
@@ -131,15 +145,6 @@ inline Hash ComputeHash(const uint8_t* byteStream, size_t sizeInBytes)
         bytesProcessed += bytesPerBlock;
     }
 
-    // There remain between 0 and 511 bits of the message to process ('l' bits)
-    // In addition, we must add the required padding bits to the message, starting with a '1' bit and 
-    // 'k' zero bits, where l + 1 + k  = 448 (mod 512),
-    // and followed by 64 bits representing the number of bits in the whole message.
-    // In total then there are (l + k + 65) bits left to process, and the maximum value of l+k is 959.
-    // So there are at most 1024 bits = 128 bytes = 32 words = 2 blocks left to process.
-    // In particular, there are a whole number of blocks left to process, and that number is 1 or 2.
-    // If l <= 447 then we need just one block, and if l >= 448 then we need two blocks.
-    
     // Initialize blocks to zero bits
     std::fill(localWords.begin(), localWords.end(), 0);
     uint8_t* localBytes = reinterpret_cast<uint8_t*>(&localWords[0]);
@@ -153,9 +158,9 @@ inline Hash ComputeHash(const uint8_t* byteStream, size_t sizeInBytes)
     localBytes[ReverseEndianByteIndex(bytesRemaining)] = 0x80;
 
     // Add the message size in bits
-    const uint32_t lBits = bytesRemaining << 3;
-    const uint32_t zeroBits = lBits <= 447 ? 447 - lBits : 512 + 447 - lBits;
-    const uint32_t messageSizeWordPos = (lBits + 1 + zeroBits) >> 5;
+    const uint32_t lBits = bytesRemaining << 3; // l bits of the message remaining
+    const uint32_t zeroBits = lBits <= 447 ? 447 - lBits : 512 + 447 - lBits; // k zero bits where l + 1 + k = 448 (mod 512)
+    const uint32_t messageSizeWordPos = (lBits + 1 + zeroBits) >> 5; // The message size goes after the zero padding bits
     const uint64_t messageSizeInBits = sizeInBytes << 3;
     const uint32_t messageSizeLoWord = static_cast<uint32_t>(messageSizeInBits);
     const uint32_t messageSizeHiWord = static_cast<uint32_t>(messageSizeInBits >> 32);
@@ -167,9 +172,9 @@ inline Hash ComputeHash(const uint8_t* byteStream, size_t sizeInBytes)
     if (lBits >= 448) // messageSizeWordPos + 1 >= 16
         Process16WordBlock(&localWords[16], W, H);
 
+    // Return the final hash value
     return H;
 }
-
 }
 
 inline std::ostream& operator <<(std::ostream& os, const SHA256::Hash& h)

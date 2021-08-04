@@ -260,6 +260,12 @@ public:
         return *this;
     }
 
+    constexpr UIntW& operator =(const UIntW& rhs)
+    {
+        m_a = rhs.m_a;
+        return *this;
+    }
+
     template <size_t RBits>
     constexpr UIntW<std::max(Bits, RBits) + 1> AddExtend(const UIntW<RBits>& rhs) const
     {

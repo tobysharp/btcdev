@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EC.h"
+#include "sha256.h"
 #include <random>
 
 namespace secp256k1
@@ -16,11 +17,12 @@ namespace secp256k1
         static constexpr char  n[] = "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141";
     }
     using Fp = ::Fp<str::p>;
+    using Wide = Fp::Type;
     constexpr Fp::Type p = Fp::p;
     constexpr Fp a = Parse::GetUIntArray<str::a>();
     constexpr Fp b = Parse::GetUIntArray<str::b>();
-    constexpr Fp n = Parse::GetUIntArray<str::n>();
-
+    constexpr Wide n = Parse::GetUIntArray<str::n>();
+    using Signature = std::pair<Wide, Wide>;
     using Pt = EFp<Fp, a, b>;
     constexpr Pt G = { Parse::GetUIntArray<str::Gx>(), Parse::GetUIntArray<str::Gy>() };
 
@@ -37,7 +39,7 @@ namespace secp256k1
             for (size_t i = 0; i < arr.size(); ++i)
                 arr[i] = uniform(rnd);
             d = arr;
-        } while (d.IsZero() || d >= n.x);
+        } while (d.IsZero() || d >= n);
         return d;
     }
 
@@ -57,5 +59,49 @@ namespace secp256k1
         if (!(n * publicKey).IsInfinity())
             return false;
         return true;
+    }
+    
+    template <typename Rnd>
+    inline Signature SignMessage(Rnd& rnd, const Fp& privateKey, const uint8_t* byteStream, size_t sizeInBytes)
+    {
+        while (true)
+        {
+            Wide r;
+            Fp k;
+            do
+            {
+                k = GenerateRandomPrivateKey(rnd);
+                const Pt R = PrivateKeyToPublicKey(k);
+                r = R.x.x >= n ? (R.x.x - n) : R.x.x;
+            } while (r.IsZero());
+            SHA256::Hash H = SHA256::ComputeHash(byteStream, sizeInBytes);
+            std::reverse(H.begin(), H.end()); // Reverse words to have the correct endian-ness for conversion to integer
+            const Wide e = H;
+            const Wide rdU = ModuloArithmetic::MultiplyModuloM(r, privateKey.x, n);
+            const Wide e_rdU = ModuloArithmetic::AddModuloM(e, rdU, n);
+            const Wide kinv = ModuloArithmetic::InvertModuloOdd(k.x, n);
+            const Wide s = ModuloArithmetic::MultiplyModuloM(kinv, e_rdU, n);
+            if (!s.IsZero())
+                return { r, s };
+        }
+    }
+
+    inline bool VerifySignature(const Pt& publicKey, const Signature& signature, const uint8_t* byteStream, size_t sizeInBytes)
+    {
+        if (signature.first.IsZero() || signature.first >= n)
+            return false;
+        if (signature.second.IsZero() || signature.second >= n)
+            return false;
+        auto H = SHA256::ComputeHash(byteStream, sizeInBytes);
+        std::reverse(H.begin(), H.end()); // Reverse words to have the correct endian-ness for conversion to integer
+        const Wide e = H;
+        const Wide sinv = ModuloArithmetic::InvertModuloOdd(signature.second, n);
+        const Wide u1 = ModuloArithmetic::MultiplyModuloM(e, sinv, n);
+        const Wide u2 = ModuloArithmetic::MultiplyModuloM(signature.first, sinv, n);
+        const Pt R = u1 * G + u2 * publicKey;
+        if (R.IsInfinity())
+            return false;
+        const Wide v = R.x.x >= n ? R.x.x - n : R.x.x;
+        return signature.first == v;
     }
 }

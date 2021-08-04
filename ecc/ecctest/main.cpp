@@ -101,9 +101,11 @@ inline bool ValidateECDomainParams(
 
 int main()
 {
-    const char* abc = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    const char* abc = "abc";
     auto hash = SHA256::ComputeHash(reinterpret_cast<const uint8_t*>(abc), strlen(abc));
     std::cout << hash << std::endl;
+
+    auto log2 = secp256k1::n.Log2();
 
     auto now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     std::mt19937 random(static_cast<unsigned int>(now));
@@ -113,6 +115,9 @@ int main()
 
     // A public key is a point on the EC that is uniquely determined by the private key
     const auto publicKey = secp256k1::PrivateKeyToPublicKey(privateKey);
+
+    const auto signature = secp256k1::SignMessage(random, privateKey, reinterpret_cast<const uint8_t*>(abc), strlen(abc));
+    const bool isVerified = secp256k1::VerifySignature(publicKey, signature, reinterpret_cast<const uint8_t*>(abc), strlen(abc));
 
     if (!secp256k1::IsPublicKeyValid(publicKey))
         throw std::runtime_error("Invalid public key");
