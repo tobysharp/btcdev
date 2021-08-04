@@ -404,7 +404,7 @@ public:
     }
 
     template <size_t RBits>
-    friend constexpr bool operator <(const UIntW<Bits>& lhs, const UIntW<RBits>& rhs)
+    friend constexpr bool operator <(const UIntW& lhs, const UIntW<RBits>& rhs)
     {
         // Start with the high order elements
         for (size_t i = std::max(lhs.ElementCount, rhs.ElementCount) - 1; i != (size_t)-1; --i)

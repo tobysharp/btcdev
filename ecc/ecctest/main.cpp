@@ -18,15 +18,15 @@ int main()
     if (!secp256k1::IsPublicKeyValid(publicKey))
         throw std::runtime_error("Invalid public key");
 
-    const char* abc = "abc";
+    std::string abc = "abc";
     
-    auto hash = SHA256::ComputeHash(reinterpret_cast<const uint8_t*>(abc), strlen(abc));
+    auto hash = SHA256::Compute(&abc[0], abc.size());
     std::cout << "Hash: " << hash << std::endl;
 
-    const auto signature = secp256k1::SignMessage(random, privateKey, reinterpret_cast<const uint8_t*>(abc), strlen(abc));
+    const auto signature = secp256k1::SignMessage(privateKey, &abc[0], abc.size(), random, SHA256::Compute);
     std::cout << "Signature: " << signature.first << signature.second << std::endl;
 
-    const bool isVerified = secp256k1::VerifySignature(publicKey, signature, reinterpret_cast<const uint8_t*>(abc), strlen(abc));
+    const bool isVerified = secp256k1::VerifySignature(publicKey, signature, &abc[0], abc.size(), SHA256::Compute);
     std::cout << "Verified: " << (isVerified ? "yes" : "no") << std::endl;
 
 
