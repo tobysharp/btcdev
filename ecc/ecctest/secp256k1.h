@@ -1,9 +1,6 @@
 #pragma once
 
 #include "EC.h"
-#include "sha256.h"
-
-#include <random>
 
 namespace secp256k1_str
 {
