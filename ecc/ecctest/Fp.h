@@ -8,7 +8,7 @@ namespace ModuloArithmetic
     constexpr UIntW<Bits> SubtractModuloM(const UIntW<Bits>& a, const UIntW<Bits>& b, const UIntW<Bits>& M)
     {
         if (a < b)
-            return a + M - b;
+            return M - b + a;
         else
             return a - b;
     }
@@ -120,14 +120,15 @@ namespace Parse
         return bitCount;
     }
 
-    template <const char* str, typename Base = uint32_t>
+    template <const char* str, typename Base = uint32_t, bool IsReverse = true>
     constexpr auto GetUIntArray()
     {
         constexpr size_t Bits = GetBitCount<str>();
         constexpr size_t BitsPerElement = sizeof(Base) * 8;
         constexpr size_t Elements = (Bits + BitsPerElement - 1) / BitsPerElement;
         std::array<Base, Elements> rv = {};
-        int nibble = 0, index = (Bits + 3) / 4 - 1;
+        int nibble = 0, index = IsReverse ? (Bits + 3) / 4 - 1 : 1;
+        constexpr int nibblesPerElement = sizeof(Base) * 2;
         for (auto ichar = 0; str[ichar] != '\0'; ++ichar)
         {
             if (str[ichar] >= 'A' && str[ichar] <= 'F')
@@ -142,9 +143,12 @@ namespace Parse
                 throw;
             if (index < 0)
                 throw;
-            auto lshift = (index & 7) << 2;
-            rv[index / 8] |= nibble << lshift;
-            --index;
+            auto lshift = (index & (nibblesPerElement - 1)) << 2;
+            rv[index / nibblesPerElement] |= nibble << lshift;
+            if (IsReverse)
+                --index;
+            else
+                index = (index & 1) ? index - 1 : index + 3;
         }
         return rv;
     }

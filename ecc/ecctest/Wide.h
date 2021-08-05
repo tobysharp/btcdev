@@ -38,6 +38,7 @@ public:
     static constexpr size_t ValidBitsInHighElement = Bits - BitsPerElement * (ElementCount - 1);
     static constexpr Base HighElementMask = Detail::GetHighElementMask<Base>(BitsPerElement, ValidBitsInHighElement);
     static constexpr size_t Log2BitsPerElement = Detail::Log2(BitsPerElement);
+    static constexpr size_t Log2BytesPerElement = Detail::Log2(sizeof(Base));
 
     using Array = std::array<Base, ElementCount>;
     using DoubleBase = typename Detail::DoubleSize<Base>::type;
@@ -151,6 +152,14 @@ public:
         return (m_a[elementIndex] & bitMask) != 0;
     }
 
+    constexpr uint8_t GetByte(size_t byteIndex) const
+    {
+        size_t elementIndex = byteIndex >> Log2BytesPerElement;
+        size_t byteWithinElement = byteIndex - (elementIndex << Log2BytesPerElement);
+        size_t shiftBits = byteWithinElement << 3;
+        return static_cast<uint8_t>(m_a[elementIndex] >> shiftBits);
+    }
+
     // Returns the bit index of the highest bit that is not set to the clear bit.
     // The clear bit is zero for unsigned base types, and equal to the sign bit for signed base types.
     constexpr size_t Log2() const
@@ -186,6 +195,15 @@ public:
         size_t bitWithinElement = bitIndex - (elementIndex << Log2BitsPerElement);
         Base bitMask = (Base)1 << bitWithinElement;
         m_a[elementIndex] = (m_a[elementIndex] & ~bitMask) | ((Base)value << bitWithinElement);
+    }
+
+    constexpr void SetByte(size_t byteIndex, uint8_t value)
+    {
+        size_t elementIndex = byteIndex >> Log2BytesPerElement;
+        size_t byteWithinElement = byteIndex - (elementIndex << Log2BytesPerElement);
+        size_t shiftBits = byteWithinElement << 3;
+        Base byteMask = (Base)0xFF << shiftBits;
+        m_a[elementIndex] = (m_a[elementIndex] & ~byteMask) | ((Base)value << shiftBits);
     }
 
     template <size_t RBits>

@@ -179,8 +179,7 @@ inline Hash Compute(const char* byteStream, size_t sizeInBytes)
 
 inline std::ostream& operator <<(std::ostream& os, const SHA256::Hash& h)
 {
-    os << std::hex;
     for (auto x : h)
-        os << x << ' ';
+        os << std::hex << std::setw(2 * sizeof(SHA256::Hash::value_type)) << std::setfill('0') << x << ' ';
     return os;
 }

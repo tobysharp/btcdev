@@ -1,5 +1,6 @@
 #include "secp256k1.h"
 #include "sha256.h"
+#include "DER.h"
 
 #include <iostream>
 #include <chrono>
@@ -15,18 +16,17 @@ int main()
     const auto publicKey = secp256k1::PrivateKeyToPublicKey(privateKey);
     std::cout << "Public key: " << publicKey << std::endl;
 
-    if (!secp256k1::IsPublicKeyValid(publicKey))
-        throw std::runtime_error("Invalid public key");
-
     std::string abc = "abc";
-    
+
     auto hash = SHA256::Compute(&abc[0], abc.size());
     std::cout << "Hash: " << hash << std::endl;
 
     const auto signature = secp256k1::SignMessage(privateKey, &abc[0], abc.size(), random, SHA256::Compute);
-    std::cout << "Signature: " << signature.first << signature.second << std::endl;
+    const auto sigstream = DER::EncodeSignature(signature);
+    std::cout << "Signature: " << sigstream << std::endl;
 
-    const bool isVerified = secp256k1::VerifySignature(publicKey, signature, &abc[0], abc.size(), SHA256::Compute);
+    const auto decoded = DER::DecodeSignature<256>(sigstream);
+    const bool isVerified = secp256k1::VerifySignature(publicKey, decoded, &abc[0], abc.size(), SHA256::Compute);
     std::cout << "Verified: " << (isVerified ? "yes" : "no") << std::endl;
 
 

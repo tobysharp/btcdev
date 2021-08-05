@@ -150,6 +150,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DER.h" />
     <ClInclude Include="Fp.h" />
     <ClInclude Include="EC.h" />
     <ClInclude Include="secp256k1.h" />

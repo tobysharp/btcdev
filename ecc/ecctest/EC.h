@@ -12,11 +12,14 @@ public:
     using Mod_p = Fp<pStr>;
     using Mod_n = Fp<nStr>;
     using Wide = Mod_p::Type;
-    static_assert(std::is_same_v<Mod_p::Type, Mod_n::Type>);
+    using Signature = std::pair<Wide, Wide>;
+
     static constexpr Wide p = Mod_p::p;
     static constexpr Wide n = Mod_n::p;
     static constexpr Mod_p a = Parse::GetUIntArray<aStr>();
     static constexpr Mod_p b = Parse::GetUIntArray<bStr>();
+
+    static_assert(std::is_same_v<Mod_p::Type, Mod_n::Type>);
     static_assert(p > n);
     static_assert(4 * a.Squared() * a + 27 * b.Squared() != 0);
 
@@ -114,8 +117,6 @@ public:
 
     static constexpr Point G = { Parse::GetUIntArray<GxStr>(), Parse::GetUIntArray<GyStr>() };
 
-    using Signature = std::pair<Wide, Wide>;
-
     template <typename Rnd>
     inline static Wide GenerateRandomPrivateKey(Rnd& rnd)
     {
@@ -189,6 +190,8 @@ public:
     template <typename HashFunc>
     inline static bool VerifySignature(const Point& publicKey, const Signature& signature, const char* byteStream, size_t sizeInBytes, HashFunc& hashFunc)
     {
+        if (!IsPublicKeyValid(publicKey))
+            throw std::invalid_argument("Invalid public key");
         if (signature.first == 0 || signature.first >= n)
             return false;
         if (signature.second == 0 || signature.second >= n)
