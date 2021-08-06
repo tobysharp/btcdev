@@ -8,7 +8,8 @@
     <ClInclude Include="Fp.h" />
     <ClInclude Include="EC.h" />
     <ClInclude Include="secp256k1.h" />
-    <ClInclude Include="sha256.h" />
+    <ClInclude Include="SHA256.h" />
     <ClInclude Include="DER.h" />
+    <ClInclude Include="RIPEMD160.h" />
   </ItemGroup>
 </Project>

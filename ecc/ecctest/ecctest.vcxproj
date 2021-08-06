@@ -153,8 +153,9 @@
     <ClInclude Include="DER.h" />
     <ClInclude Include="Fp.h" />
     <ClInclude Include="EC.h" />
+    <ClInclude Include="RIPEMD160.h" />
     <ClInclude Include="secp256k1.h" />
-    <ClInclude Include="sha256.h" />
+    <ClInclude Include="SHA256.h" />
     <ClInclude Include="Wide.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
