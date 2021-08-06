@@ -102,8 +102,7 @@ namespace ModuloArithmetic
 
 namespace Parse
 {
-    template <const char* str>
-    constexpr size_t GetBitCount()
+    size_t GetBitCount(const char* str)
     {
         size_t bitCount = 0;
         for (auto ichar = 0; str[ichar] != '\0'; ++ichar)
@@ -120,15 +119,13 @@ namespace Parse
         return bitCount;
     }
 
-    template <const char* str, typename Base = uint32_t, bool IsReverse = true>
-    constexpr auto GetUIntArray()
+    template <typename Word = uint32_t, size_t Elements>
+    auto GetUIntArray(const char* str, const bool MSWFirst = true)
     {
-        constexpr size_t Bits = GetBitCount<str>();
-        constexpr size_t BitsPerElement = sizeof(Base) * 8;
-        constexpr size_t Elements = (Bits + BitsPerElement - 1) / BitsPerElement;
-        std::array<Base, Elements> rv = {};
-        int nibble = 0, index = IsReverse ? (Bits + 3) / 4 - 1 : 1;
-        constexpr int nibblesPerElement = sizeof(Base) * 2;
+        constexpr size_t Bits = Elements * sizeof(Word) * 8;
+        std::array<Word, Elements> rv = {};
+        int nibble = 0, index = MSWFirst ? (Bits + 3) / 4 - 1 : 1;
+        constexpr int nibblesPerElement = sizeof(Word) * 2;
         for (auto ichar = 0; str[ichar] != '\0'; ++ichar)
         {
             if (str[ichar] >= 'A' && str[ichar] <= 'F')
@@ -145,7 +142,7 @@ namespace Parse
                 throw;
             auto lshift = (index & (nibblesPerElement - 1)) << 2;
             rv[index / nibblesPerElement] |= nibble << lshift;
-            if (IsReverse)
+            if (MSWFirst)
                 --index;
             else
                 index = (index & 1) ? index - 1 : index + 3;
@@ -154,21 +151,21 @@ namespace Parse
     }
 }
 
-template <const char* p0x>
+template <size_t Bits, UIntW<Bits> p>
 class Fp
 {
 public:
-    static constexpr size_t Bits = Parse::GetBitCount<p0x>();
+    //static constexpr size_t Bits = Parse::GetBitCount(p0x);
     using Type = UIntW<Bits>;
     using Base = Type::Base;
     using Array = typename Type::Array;
-    static constexpr Type p = Parse::GetUIntArray<p0x, Base>();
+    //static constexpr Type p = Parse::GetUIntArray<Base>(p0x);
     static_assert((p & 1) != 0);
 
     constexpr Fp() {}
     constexpr Fp(const Base& rhs) : Fp(Type{ rhs }) {}
     constexpr Fp(const Array& rhs) : Fp(Type{ rhs }) {}
-    template <const char* p1x> constexpr Fp(const Fp<p1x>& rhs) : Fp(rhs.x) {}
+    template <size_t RBits, UIntW<Bits> q> constexpr Fp(const Fp<RBits, q>& rhs) : Fp(rhs.x) {}
     constexpr Fp(const Fp& rhs) : x(rhs.x) {}
     constexpr Fp(Fp&& rhs) : x(std::move(rhs.x)) {}
     constexpr Fp(const Type& rhs) : x(rhs) 

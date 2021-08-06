@@ -4,22 +4,16 @@
 
 #include <random>
 
-template <const char* pStr, const char* aStr, const char* bStr, 
-          const char* GxStr, const char* GyStr, const char* nStr>
+template <size_t Bits, UIntW<Bits> p, UIntW<Bits> a, UIntW<Bits> b,
+          UIntW<Bits> Gx, UIntW<Bits> Gy, UIntW<Bits> n>
 class EllipticCurve
 {
 public:
-    using Mod_p = Fp<pStr>;
-    using Mod_n = Fp<nStr>;
+    using Mod_p = Fp<Bits, p>;
+    using Mod_n = Fp<Bits, n>;
     using Wide = Mod_p::Type;
     using Signature = std::pair<Wide, Wide>;
 
-    static constexpr Wide p = Mod_p::p;
-    static constexpr Wide n = Mod_n::p;
-    static constexpr Mod_p a = Parse::GetUIntArray<aStr>();
-    static constexpr Mod_p b = Parse::GetUIntArray<bStr>();
-
-    static_assert(std::is_same_v<Mod_p::Type, Mod_n::Type>);
     static_assert(p > n);
     static_assert(4 * a.Squared() * a + 27 * b.Squared() != 0);
 
@@ -101,8 +95,8 @@ public:
             return sum;
         }
 
-        template <const char* p0x>
-        friend Point operator *(const Fp<p0x>& scalar, const Point& pt)
+        template <size_t xBits, UIntW<xBits> px>
+        friend Point operator *(const Fp<xBits, px>& scalar, const Point& pt)
         {
             return scalar.x * pt;
         }
@@ -115,7 +109,7 @@ public:
         Mod_p x, y;
     };
 
-    static constexpr Point G = { Parse::GetUIntArray<GxStr>(), Parse::GetUIntArray<GyStr>() };
+    static constexpr Point G = { Gx, Gy };
 
     template <typename Rnd>
     inline static Wide GenerateRandomPrivateKey(Rnd& rnd)
