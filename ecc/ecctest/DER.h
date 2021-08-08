@@ -76,9 +76,9 @@ namespace DER
     }
 
     template <size_t Bits>
-    std::vector<uint8_t> EncodeSignature(const Signature<Bits>& rs)
+    ByteStream EncodeSignature(const Signature<Bits>& rs)
     {
-        std::vector<uint8_t> vec(GetEncodedByteCount(rs));
+        ByteStream vec(GetEncodedByteCount(rs));
         EncodeSignature(rs, vec);
         return vec;
     }
@@ -115,11 +115,4 @@ namespace DER
 
         return rs;
     }
-}
-
-std::ostream& operator <<(std::ostream& os, const DER::ByteStream& bytes)
-{
-    for (auto x : bytes)
-        os << std::hex << std::setw(2) << std::setfill('0') << +x;
-    return os;
 }

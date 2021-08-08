@@ -148,10 +148,10 @@ namespace RIPEMD160
     }
 }
 
-std::ostream& operator <<(std::ostream& os, const RIPEMD160::Hash& h)
-{
-    for (auto x : h)
-        os << std::hex << std::setw(2 * sizeof(RIPEMD160::Hash::value_type)) << std::setfill('0') 
-           << RIPEMD160::Detail::ReverseEndianWord(x);
-    return os;
-}
+//std::ostream& operator <<(std::ostream& os, const RIPEMD160::Hash& h)
+//{
+//    for (auto x : h)
+//        os << std::hex << std::setw(2 * sizeof(RIPEMD160::Hash::value_type)) << std::setfill('0') 
+//           << RIPEMD160::Detail::ReverseEndianWord(x);
+//    return os;
+//}

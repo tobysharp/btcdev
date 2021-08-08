@@ -187,9 +187,9 @@ template <typename Iter> Hash Compute(Iter begin, Iter end)
 
 }
 
-inline std::ostream& operator <<(std::ostream& os, const SHA256::Hash& h)
-{
-    for (auto x : h)
-        os << std::hex << std::setw(2 * sizeof(SHA256::Hash::value_type)) << std::setfill('0') << x << ' ';
-    return os;
-}
+//inline std::ostream& operator <<(std::ostream& os, const SHA256::Hash& h)
+//{
+//    for (auto x : h)
+//        os << std::hex << std::setw(2 * sizeof(SHA256::Hash::value_type)) << std::setfill('0') << x << ' ';
+//    return os;
+//}

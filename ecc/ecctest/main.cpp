@@ -3,15 +3,6 @@
 #include <iostream>
 #include <chrono>
 
-//template <size_t N>
-//std::ostream& operator <<(std::ostream& os, const std::array<uint8_t, N>& bytes)
-//{
-//    for (auto x : bytes)
-//        os << std::hex << std::setw(2) << std::setfill('0') << +x;
-//    return os;
-//}
-
-
 int main()
 {
     auto now = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -23,23 +14,20 @@ int main()
 
     const auto publicKey = secp256k1::EC::PrivateKeyToPublicKey(privateKey);
 
-    const auto address = Bitcoin::GenerateAddress(publicKey);
+    const auto address = Bitcoin::PublicKeyToAddress(publicKey);
     std::cout << "Address: " << address << std::endl;
     std::cout << "Valid: " << (Base58Check::IsEncodingValid(address) ? "yes" : "no") << std::endl;
     std::cout << "Check: " << (address == "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs" ? "yes" : "no") << std::endl;
 
     const std::string abc = "abc";
-    const auto signature = Bitcoin::EC::SignMessage(privateKey, &abc[0], abc.size(), random, SHA256::Compute<const char*>);
-    const auto sigstream = DER::EncodeSignature(signature);
-    std::cout << "Signature: " << sigstream << std::endl;
+    const auto signature = Bitcoin::Sign(privateKey, abc.begin(), abc.end(), random);
+    std::cout << "Signature: " << signature << std::endl;
 
-    const auto decoded = DER::DecodeSignature<256>(sigstream);
-    const bool isVerified = secp256k1::EC::VerifySignature(publicKey, decoded, &abc[0], abc.size(), SHA256::Compute<const char*>);
+    const bool isVerified = Bitcoin::Verify(publicKey, abc.begin(), abc.end(), signature);
     std::cout << "Verified: " << (isVerified ? "yes" : "no") << std::endl;
 
-
     // to/from BIP39
-    // Bitcoin address
+    // xpubs
 
     std::cout << "Ok" << std::endl;
 }

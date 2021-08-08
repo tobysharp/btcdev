@@ -9,8 +9,17 @@ class ByteArray
 {
 public:
     constexpr ByteArray() {}
+    constexpr ByteArray(size_t size) 
+    {
+        if (N < size)
+            throw std::runtime_error("Static array unexpectedly shorter than desired buffer");
+    }
     constexpr ByteArray(const std::array<uint8_t, N>& arr) : bytes(arr) {}
     template <uint8_t... xx> constexpr ByteArray(uint8_t...) : bytes(xx...) {}
+    template <typename Iter> constexpr ByteArray(Iter begin, Iter end)
+    {
+        std::copy(begin, end, bytes.begin());
+    }
 
     constexpr size_t size() const { return bytes.size(); }
     constexpr auto begin() const { return bytes.begin(); }
@@ -56,6 +65,7 @@ class ByteArray<0>
 {
 public:
     ByteArray() {}
+    ByteArray(size_t size) : bytes(size) {}
     template <typename Iter> ByteArray(Iter begin, Iter end) : bytes(begin, end) {}
     ByteArray(std::vector<uint8_t>&& rhs) : bytes(std::move(rhs)) {}
     ByteArray(size_t size, uint8_t value) : bytes(size, value) {}
@@ -77,6 +87,12 @@ public:
         return rv;
     }
 
+    friend std::ostream& operator <<(std::ostream& os, const ByteArray& bytes)
+    {
+        for (auto x : bytes.bytes)
+            os << std::hex << std::setw(2) << std::setfill('0') << +x;
+        return os;
+    }
 private:
     std::vector<uint8_t> bytes;
 };
