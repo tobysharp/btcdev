@@ -13,6 +13,6 @@
     <ClInclude Include="RIPEMD160.h" />
     <ClInclude Include="Base58Check.h" />
     <ClInclude Include="Bitcoin.h" />
-    <ClInclude Include="Endian.h" />
+    <ClInclude Include="ByteArray.h" />
   </ItemGroup>
 </Project>

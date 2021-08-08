@@ -118,6 +118,14 @@ public:
             return rv;
         }
 
+        friend std::ostream& operator <<(std::ostream& os, const Point& p)
+        {
+            auto x = p.Uncompressed();
+            for (auto xx : x)
+                os << std::hex << std::setw(2) << std::setfill('0') << +xx;
+            return os;
+        }
+
         Mod_p x, y;
     };
 

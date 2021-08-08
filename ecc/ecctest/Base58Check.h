@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SHA256.h"
-#include "Endian.h"
+#include "ByteArray.h"
 
 #include <vector>
 #include <stack>
@@ -81,7 +81,7 @@ namespace Base58Check
 
     bool IsEncodingValid(const std::string& encodedString)
     {
-        const auto reverseLUT = GetReverseLUT();
+        static const auto reverseLUT = GetReverseLUT();
         UIntW<200> sum = 0;
 
         for (auto i = encodedString.begin(); i != encodedString.end(); ++i)
@@ -98,5 +98,32 @@ namespace Base58Check
         const auto checksum = hash2.SubRange<0, 4>();
         const auto equal = std::equal(checksum.begin(), checksum.end(), inputWithChecksum.end() - 4);
         return equal;
+    }
+
+    template <size_t N>
+    ByteArray<N> Decode(const std::string& base58Check)
+    {
+        static_assert(N > 0); // Need static size for sum until we have dynamically sized UIntW
+        static const auto reverseLUT = GetReverseLUT();
+        UIntW<N * 8> sum = 0;
+
+        for (auto i = base58Check.begin(); i != base58Check.end(); ++i)
+        {
+            sum *= 58;
+            if (*i != '1')
+                sum += reverseLUT[*i];
+        }
+        ByteArray<N + 4> inputWithChecksum(sum.beginBigEndianBytes(), sum.endBigEndianBytes());
+        if (inputWithChecksum.size() < 4)
+            throw std::invalid_argument("Invalid Base58Check encoding");
+        ByteArray<N> rv(inputWithChecksum.size() - 4);
+        const auto hash1 = ToBytesAsBigEndian(SHA256::Compute(inputWithChecksum.begin(), inputWithChecksum.end() - 4));
+        const auto hash2 = ToBytesAsBigEndian(SHA256::Compute(hash1.begin(), hash1.end()));
+        const auto checksum = hash2.SubRange<0, 4>();
+        const auto equal = std::equal(checksum.begin(), checksum.end(), inputWithChecksum.end() - 4);
+        if (!equal)
+            throw std::invalid_argument("Invalid Base58Check encoding");
+        std::copy(inputWithChecksum.begin(), std::min(inputWithChecksum.end(), inputWithChecksum.begin() + N), rv.begin());
+        return rv;
     }
 }

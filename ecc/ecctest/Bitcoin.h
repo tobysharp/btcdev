@@ -1,7 +1,6 @@
 #pragma once
 
 #include "secp256k1.h"
-#include "Endian.h"
 #include "SHA256.h"
 #include "RIPEMD160.h"
 #include "Base58Check.h"
@@ -37,6 +36,12 @@ namespace Bitcoin
     {
         auto hash1 = SHA256Hash(begin, end);
         return SHA256Hash(hash1.begin(), hash1.end());
+    }
+
+    template <typename Rnd>
+    PrivateKey GeneratePrivateKey(Rnd& rnd)
+    {
+        return EC::GenerateRandomPrivateKey(rnd);
     }
 
     Address PublicKeyToAddress(const PublicKey& publicKey, uint8_t version = 0x00)

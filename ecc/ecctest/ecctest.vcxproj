@@ -153,7 +153,7 @@
     <ClInclude Include="Base58Check.h" />
     <ClInclude Include="Bitcoin.h" />
     <ClInclude Include="DER.h" />
-    <ClInclude Include="Endian.h" />
+    <ClInclude Include="ByteArray.h" />
     <ClInclude Include="Fp.h" />
     <ClInclude Include="EC.h" />
     <ClInclude Include="RIPEMD160.h" />
