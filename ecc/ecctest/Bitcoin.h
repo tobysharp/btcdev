@@ -5,11 +5,13 @@
 #include "SHA256.h"
 #include "RIPEMD160.h"
 #include "Base58Check.h"
+#include "DER.h"
 
 namespace Bitcoin
 {
-    using PrivateKey = secp256k1::EC::Wide;
-    using PublicKey = secp256k1::EC::Point;
+    using EC = secp256k1::EC;
+    using PrivateKey = EC::Wide;
+    using PublicKey = EC::Point;
     using LongHash = ByteArray<32>;
     using ShortHash = ByteArray<20>;
     using Address = std::string;

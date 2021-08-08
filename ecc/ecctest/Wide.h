@@ -415,6 +415,11 @@ public:
         return *this = (*this + rhs).Truncate<Bits>();
     }
 
+    constexpr UIntW& operator +=(Base rhs)
+    {
+        return operator +=(UIntW<BitsPerElement>(rhs));
+    }
+
     template <size_t RBits>
     friend constexpr auto operator *(const UIntW<Bits>& lhs, const UIntW<RBits>& rhs)
     {
@@ -426,13 +431,13 @@ public:
         return lhs * UIntW<BitsPerElement>(rhs);
     }
 
-    //friend constexpr auto operator *(Base lhs, const UIntW<Bits>& rhs)
-    //{
-    //    return UIntW<BitsPerElement>(lhs) * rhs;
-    //}
-
     template <size_t RBits>
     constexpr UIntW& operator *=(const UIntW<RBits>& rhs)
+    {
+        return operator =((*this * rhs).Truncate<Bits>());
+    }
+
+    constexpr UIntW& operator *=(Base rhs)
     {
         return operator =((*this * rhs).Truncate<Bits>());
     }

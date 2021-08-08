@@ -55,6 +55,7 @@ template <>
 class ByteArray<0>
 {
 public:
+    ByteArray() {}
     template <typename Iter> ByteArray(Iter begin, Iter end) : bytes(begin, end) {}
     ByteArray(std::vector<uint8_t>&& rhs) : bytes(std::move(rhs)) {}
     ByteArray(size_t size, uint8_t value) : bytes(size, value) {}
@@ -64,6 +65,8 @@ public:
     auto end() const { return bytes.end(); }
     auto begin() { return bytes.begin(); }
     auto end() { return bytes.end(); }
+
+    void push_back(uint8_t byte) { bytes.push_back(byte); }
 
     template <size_t  N>
     friend ByteArray operator |(const ByteArray& lhs, const ByteArray<N>& rhs)

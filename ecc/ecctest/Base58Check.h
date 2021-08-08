@@ -70,4 +70,33 @@ namespace Base58Check
         }
         return base58Digits;
     }
+
+    constexpr std::array<uint8_t, 256> GetReverseLUT()
+    {
+        std::array<uint8_t, 256> table;
+        for (uint8_t i = 0; i < static_cast<uint8_t>(Base58Table.size()); ++i)
+            table[Base58Table[i]] = i;
+        return table;
+    }
+
+    bool IsEncodingValid(const std::string& encodedString)
+    {
+        const auto reverseLUT = GetReverseLUT();
+        UIntW<200> sum = 0;
+
+        for (auto i = encodedString.begin(); i != encodedString.end(); ++i)
+        {
+            sum *= 58;
+            if (*i != '1')
+                sum += reverseLUT[*i];
+        }
+        ByteArray<> inputWithChecksum(sum.beginBigEndianBytes(), sum.endBigEndianBytes());
+        if (inputWithChecksum.size() < 4)
+            return false;
+        const auto hash1 = ToBytesAsBigEndian(SHA256::Compute(inputWithChecksum.begin(), inputWithChecksum.end() - 4));
+        const auto hash2 = ToBytesAsBigEndian(SHA256::Compute(hash1.begin(), hash1.end()));
+        const auto checksum = hash2.SubRange<0, 4>();
+        const auto equal = std::equal(checksum.begin(), checksum.end(), inputWithChecksum.end() - 4);
+        return equal;
+    }
 }

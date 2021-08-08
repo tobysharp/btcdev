@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Fp.h"
-#include "Endian.h"
 
 #include <random>
 
@@ -102,7 +101,7 @@ public:
             return scalar.x * pt;
         }
 
-        ByteArray<sizeof(Mod_p) + 1> Compressed() const
+        std::array<uint8_t, sizeof(Mod_p) + 1> Compressed() const
         {
             std::array<uint8_t, sizeof(Mod_p) + 1> rv;
             rv[0] = (y.x & 1) ? 0x03 : 0x02;
@@ -110,7 +109,7 @@ public:
             return rv;
         }
 
-        ByteArray<2 * sizeof(Mod_p) + 1> Uncompressed() const
+        std::array<uint8_t, 2 * sizeof(Mod_p) + 1> Uncompressed() const
         {
             std::array<uint8_t, 2 * sizeof(Mod_p) + 1> rv;
             rv[0] = 0x04;
