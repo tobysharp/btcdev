@@ -12,7 +12,9 @@ namespace SHA256
     using Hash = std::array<uint32_t, 8>; 
 
     // Compute the SHA-256 hash of an arbitrary byte stream
-    Hash Compute(const char* byteStream, size_t sizeInBytes);
+    Hash Compute(const unsigned char* byteStream, size_t sizeInBytes);
+
+    template <typename Iter> Hash Compute(Iter begin, Iter end);
 }
 
 // Write the hash digest to an output stream
@@ -123,7 +125,7 @@ namespace Detail
     }
 }
 
-inline Hash Compute(const char* byteStream, size_t sizeInBytes)
+inline Hash Compute(const unsigned char* byteStream, size_t sizeInBytes)
 {
     using namespace Detail;
 
@@ -175,6 +177,14 @@ inline Hash Compute(const char* byteStream, size_t sizeInBytes)
     // Return the final hash value
     return H;
 }
+
+template <typename Iter> Hash Compute(Iter begin, Iter end)
+{
+    const auto diff = end - begin;
+    const size_t bytes = diff * sizeof(std::remove_reference_t<decltype(*begin)>);
+    return Compute(bytes == 0 ? nullptr : reinterpret_cast<const unsigned char*>(&*begin), bytes);
+}
+
 }
 
 inline std::ostream& operator <<(std::ostream& os, const SHA256::Hash& h)

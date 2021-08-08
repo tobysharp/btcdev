@@ -70,6 +70,25 @@ public:
     constexpr Base& operator[](size_t i) { return m_a[i]; }
     constexpr const Base& operator[](size_t i) const { return m_a[i]; }
 
+    auto beginBigEndianBytes() const
+    {
+        return reinterpret_cast<const std::array<uint8_t, (BitCount >> 3)>&>(m_a).rbegin();
+    }
+
+    auto endBigEndianBytes() const
+    {
+        return reinterpret_cast<const std::array<uint8_t, (BitCount >> 3)>&>(m_a).rend();
+    }
+
+    template <typename Iter>
+    static UIntW FromBigEndianBytes(Iter beginBytes, Iter endBytes)
+    {
+        static_assert(std::is_same_v<typename Iter::value_type, unsigned char>);
+        Array arr;
+        std::copy(beginBytes, endBytes, reinterpret_cast<std::array<uint8_t, (BitCount >> 3)>&>(arr).rbegin());
+        return arr;
+    }
+
     constexpr bool IsZero() const
     {
         for (auto y : m_a)
@@ -217,6 +236,8 @@ public:
         UIntW<Bits> quotient = 0;
         for (size_t bitIndex = Bits - 1; bitIndex != (size_t)-1; --bitIndex)
         {
+            if (remainder.GetBit(Bits - 1))
+                throw std::runtime_error("Division bug");
             remainder <<= 1; // BUG: Have to be careful not to truncate before ">= rhs" test.
             remainder.SetBit(0, GetBit(bitIndex));
             if (remainder >= rhs)
@@ -313,9 +334,13 @@ public:
     constexpr UIntW<Bits> TwosComplement() const
     {
         UIntW<Bits> rv;
-        rv.m_a[0] = (Base)(-(std::make_signed_t<Base>)m_a[0]);
-        for (size_t i = 1; i < ElementCount; ++i)
-            rv.m_a[i] = (Base)(-(std::make_signed_t<Base>)(m_a[i] + 1));
+        // Flip all the bits
+        for (size_t i = 0; i < ElementCount; ++i)
+            rv.m_a[i] = ~m_a[i];
+        // Then add one. As soon as a word hasn't overflowed, we can break 
+        for (size_t i = 0; i < ElementCount; ++i)
+            if (++rv.m_a[i] != 0)
+                break;
         rv.EnforceBitLimit();
         return rv;
     }
@@ -386,6 +411,12 @@ public:
     friend constexpr auto operator *(const UIntW<Bits>& lhs, const UIntW<RBits>& rhs)
     {
         return lhs.MultiplyUnsignedExtend(rhs);
+    }
+
+    template <size_t RBits>
+    constexpr UIntW& operator *=(const UIntW<RBits>& rhs)
+    {
+        return operator =((*this * rhs).Truncate<Bits>());
     }
 
     constexpr UIntW<Bits*2> Squared() const
@@ -474,10 +505,16 @@ public:
     {
         for (size_t i = 0; i < std::max(lhs.ElementCount, rhs.ElementCount); ++i)
         {
-            if (i >= lhs.ElementCount && rhs[i] != 0)
-                return true;
-            else if (i >= rhs.ElementCount && lhs[i] != 0)
-                return true;
+            if (i >= lhs.ElementCount)
+            {
+                if (rhs[i] != 0)
+                    return true;
+            }
+            else if (i >= rhs.ElementCount)
+            {
+                if (lhs[i] != 0)
+                    return true;
+            }
             else if (lhs.m_a[i] != rhs.m_a[i])
                 return true;
         }

@@ -11,5 +11,8 @@
     <ClInclude Include="SHA256.h" />
     <ClInclude Include="DER.h" />
     <ClInclude Include="RIPEMD160.h" />
+    <ClInclude Include="Base58Check.h" />
+    <ClInclude Include="Bitcoin.h" />
+    <ClInclude Include="Endian.h" />
   </ItemGroup>
 </Project>

@@ -101,6 +101,23 @@ public:
             return scalar.x * pt;
         }
 
+        std::array<uint8_t, sizeof(Mod_p) + 1> Compressed() const
+        {
+            std::array<uint8_t, sizeof(Mod_p) + 1> rv;
+            rv[0] = (y.x & 1) ? 0x03 : 0x02;
+            std::copy(x.x.beginBigEndianBytes(), x.x.endBigEndianBytes(), rv.begin() + 1);
+            return rv;
+        }
+
+        std::array<uint8_t, 2 * sizeof(Mod_p) + 1> Uncompressed() const
+        {
+            std::array<uint8_t, 2 * sizeof(Mod_p) + 1> rv;
+            rv[0] = 0x04;
+            std::copy(x.x.beginBigEndianBytes(), x.x.endBigEndianBytes(), rv.begin() + 1);
+            std::copy(y.x.beginBigEndianBytes(), y.x.endBigEndianBytes(), rv.begin() + 1 + sizeof(Mod_p));
+            return rv;
+        }
+
         friend std::ostream& operator <<(std::ostream& os, const Point& pt)
         {
             return os << "04" << pt.x << pt.y;
@@ -173,7 +190,7 @@ public:
             const Mod_n r = R.x;
             if (r == 0)
                 continue;
-            const auto H = hashFunc(byteStream, sizeInBytes);
+            const auto H = hashFunc(byteStream, byteStream + sizeInBytes);
             const Mod_n e = HashToInt(H), d_U = privateKey;
             const Mod_n s = (e + r * d_U) / k;
             if (s != 0)
@@ -190,7 +207,7 @@ public:
             return false;
         if (signature.second == 0 || signature.second >= n)
             return false;
-        const auto H = hashFunc(byteStream, sizeInBytes);
+        const auto H = hashFunc(byteStream, byteStream + sizeInBytes);
         const Mod_n e = HashToInt(H), r = signature.first, s = signature.second;
         const auto sinv = s.Inverse();
         const auto u1 = e * sinv;

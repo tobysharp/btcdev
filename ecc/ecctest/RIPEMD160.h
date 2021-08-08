@@ -10,7 +10,9 @@ namespace RIPEMD160
 {
     using Hash = std::array<uint32_t, 5>;
 
-    Hash Compute(const char* byteStream, size_t sizeInBytes);
+    Hash Compute(const unsigned char* byteStream, size_t sizeInBytes);
+
+    template <typename Iter> Hash Compute(Iter begin, Iter end);
 
     namespace Detail
     {
@@ -96,7 +98,7 @@ namespace RIPEMD160
         }
     }
 
-    inline Hash Compute(const char* byteStream, size_t sizeInBytes)
+    inline Hash Compute(const unsigned char* byteStream, size_t sizeInBytes)
     {
         using namespace Detail;
 
@@ -136,6 +138,13 @@ namespace RIPEMD160
 
         // Return the final hash value
         return H;
+    }
+
+    template <typename Iter> Hash Compute(Iter begin, Iter end)
+    {
+        const auto diff = end - begin;
+        const size_t bytes = diff * sizeof(std::remove_reference_t<decltype(*begin)>);
+        return Compute(bytes == 0 ? nullptr : reinterpret_cast<const unsigned char*>(&*begin), bytes);
     }
 }
 
