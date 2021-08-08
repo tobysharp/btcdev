@@ -12,7 +12,7 @@ namespace Bitcoin
     using PublicKey = secp256k1::EC::Point;
     using LongHash = ByteArray<32>;
     using ShortHash = ByteArray<20>;
-    using Address = std::vector<char>;
+    using Address = std::string;
 
     template <typename Iter> LongHash SHA256Hash(Iter begin, Iter end)
     {
@@ -45,11 +45,11 @@ namespace Bitcoin
         std::copy(hashOfCompressedPublicKey.begin(), hashOfCompressedPublicKey.end(), bytesToEncode.begin() + 1);
         return Base58Check::Encode(bytesToEncode);
     }
+}
 
-    std::ostream& operator <<(std::ostream& os, const Address& address)
-    {
-        for (auto x : address)
-            os << x;
-        return os;
-    }
+std::ostream& operator <<(std::ostream& os, const Bitcoin::Address& address)
+{
+    for (auto x : address)
+        os << x;
+    return os;
 }

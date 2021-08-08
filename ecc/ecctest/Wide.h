@@ -55,6 +55,7 @@ public:
     {
         EnforceBitLimit();
     }
+    constexpr UIntW(int a) : UIntW(static_cast<Base>(a)) {}
     template <size_t RBits> constexpr UIntW(const UIntW<RBits>& rhs)
     {
 #ifdef _DEBUG
@@ -80,21 +81,25 @@ public:
         return reinterpret_cast<const std::array<uint8_t, (BitCount >> 3)>&>(m_a).rend();
     }
 
-    template <typename Iter>
-    static UIntW FromBigEndianBytes(Iter beginBytes, Iter endBytes)
-    {
-        static_assert(std::is_same_v<typename Iter::value_type, unsigned char>);
-        Array arr;
-        std::copy(beginBytes, endBytes, reinterpret_cast<std::array<uint8_t, (BitCount >> 3)>&>(arr).rbegin());
-        return arr;
-    }
-
     constexpr bool IsZero() const
     {
         for (auto y : m_a)
             if (y != 0)
                 return false;
         return true;
+    }
+    
+    constexpr bool IsOdd() const
+    {
+        return !m_a.empty() && ((m_a[0] & 1) != 0);
+    }
+
+    explicit constexpr operator bool() const
+    {
+        for (auto y : m_a)
+            if (y != 0)
+                return true;
+        return false;
     }
 
     constexpr size_t ActualBitCount() const
@@ -162,6 +167,11 @@ public:
         }
         return rv;
     }
+
+    explicit constexpr operator Base() const
+    {
+        return m_a[0];
+    }  
 
     constexpr bool GetBit(size_t bitIndex) const
     {
@@ -236,9 +246,7 @@ public:
         UIntW<Bits> quotient = 0;
         for (size_t bitIndex = Bits - 1; bitIndex != (size_t)-1; --bitIndex)
         {
-            if (remainder.GetBit(Bits - 1))
-                throw std::runtime_error("Division bug");
-            remainder <<= 1; // BUG: Have to be careful not to truncate before ">= rhs" test.
+            remainder <<= 1; // TODO: Check this can't cause truncation before ">= rhs" test.
             remainder.SetBit(0, GetBit(bitIndex));
             if (remainder >= rhs)
             {
@@ -413,6 +421,16 @@ public:
         return lhs.MultiplyUnsignedExtend(rhs);
     }
 
+    friend constexpr auto operator *(const UIntW<Bits>& lhs, Base rhs)
+    {
+        return lhs * UIntW<BitsPerElement>(rhs);
+    }
+
+    //friend constexpr auto operator *(Base lhs, const UIntW<Bits>& rhs)
+    //{
+    //    return UIntW<BitsPerElement>(lhs) * rhs;
+    //}
+
     template <size_t RBits>
     constexpr UIntW& operator *=(const UIntW<RBits>& rhs)
     {
@@ -533,15 +551,29 @@ public:
         return rhs < lhs;
     }
 
+    friend constexpr bool operator >(const UIntW& lhs, Base rhs)
+    {
+        return lhs > UIntW<BitsPerElement>(rhs);
+    }
+
     template <size_t RBits>
     friend constexpr bool operator >=(const UIntW& lhs, const UIntW<RBits>& rhs)
     {
         return rhs <= lhs;
     }
 
-    constexpr Base operator &(const Base& rhs) const
+    template <size_t RBits>
+    friend constexpr UIntW<std::min(Bits, RBits)> operator &(const UIntW& lhs, const UIntW<RBits>& rhs)
     {
-        return m_a[0] & rhs;
+        UIntW<std::min(Bits, RBits)> rv;
+        for (size_t i = 0; i < rv.m_a.size(); ++i)
+            rv.m_a[i] = lhs.m_a[i] & rhs.m_a[i];
+        return rv;
+    }
+
+    friend constexpr auto operator &(const UIntW& lhs, Base rhs)
+    {
+        return lhs & UIntW<BitsPerElement>(rhs);
     }
 
     friend std::ostream& operator <<(std::ostream& s, const UIntW& rhs)

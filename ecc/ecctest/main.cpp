@@ -24,6 +24,9 @@ int main()
     const auto publicKey = secp256k1::EC::PrivateKeyToPublicKey(privateKey);
 
     const auto address = Bitcoin::GenerateAddress(publicKey);
+    std::cout << "Address: " << address << std::endl;
+
+    std::cout << "Check: " << (address == "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs" ? "yes" : "no") << std::endl;
 
     //const std::string abc = "abc";
     //const auto signature = secp256k1::EC::SignMessage(privateKey, &abc[0], abc.size(), random, SHA256::Compute<const char*>);

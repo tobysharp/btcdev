@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Fp.h"
+#include "Endian.h"
 
 #include <random>
 
@@ -101,7 +102,7 @@ public:
             return scalar.x * pt;
         }
 
-        std::array<uint8_t, sizeof(Mod_p) + 1> Compressed() const
+        ByteArray<sizeof(Mod_p) + 1> Compressed() const
         {
             std::array<uint8_t, sizeof(Mod_p) + 1> rv;
             rv[0] = (y.x & 1) ? 0x03 : 0x02;
@@ -109,18 +110,13 @@ public:
             return rv;
         }
 
-        std::array<uint8_t, 2 * sizeof(Mod_p) + 1> Uncompressed() const
+        ByteArray<2 * sizeof(Mod_p) + 1> Uncompressed() const
         {
             std::array<uint8_t, 2 * sizeof(Mod_p) + 1> rv;
             rv[0] = 0x04;
             std::copy(x.x.beginBigEndianBytes(), x.x.endBigEndianBytes(), rv.begin() + 1);
             std::copy(y.x.beginBigEndianBytes(), y.x.endBigEndianBytes(), rv.begin() + 1 + sizeof(Mod_p));
             return rv;
-        }
-
-        friend std::ostream& operator <<(std::ostream& os, const Point& pt)
-        {
-            return os << "04" << pt.x << pt.y;
         }
 
         Mod_p x, y;

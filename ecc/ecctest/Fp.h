@@ -160,7 +160,7 @@ public:
     using Base = Type::Base;
     using Array = typename Type::Array;
     //static constexpr Type p = Parse::GetUIntArray<Base>(p0x);
-    static_assert((p & 1) != 0);
+    static_assert(p.IsOdd());
 
     constexpr Fp() {}
     constexpr Fp(const Base& rhs) : Fp(Type{ rhs }) {}
