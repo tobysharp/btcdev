@@ -43,6 +43,7 @@ namespace Bitcoin
     {
         return EC::GenerateRandomPrivateKey(rnd);
     }
+
     Address PublicKeyToAddress(const PublicKey& publicKey, uint8_t version = 0x00)
     {
         const auto compressedPublicKey = publicKey.Compressed();
