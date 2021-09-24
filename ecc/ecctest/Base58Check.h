@@ -21,11 +21,13 @@ namespace Base58Check
     };
 
     template <size_t N>
-    std::string Encode(const ByteArray<N>& bytes, uint8_t version = 0x00)
+    std::string Encode(const ByteArray<N>& payloadBytes, uint8_t version = 0x00)
     {
-        const auto hash1 = ToBytesAsBigEndian(SHA256::Compute(bytes.begin(), bytes.end()));
+        const auto bytesToEncode = version | payloadBytes;
+
+        const auto hash1 = ToBytesAsBigEndian(SHA256::Compute(bytesToEncode.begin(), bytesToEncode.end()));
         const auto hash2 = ToBytesAsBigEndian(SHA256::Compute(hash1.begin(), hash1.end()));
-        auto inputWithChecksum = bytes | hash2.SubRange<0, 4>();
+        auto inputWithChecksum = bytesToEncode | hash2.SubRange<0, 4>();
         
         // The number of Base58 characters in the result will be:
         // the number of leading zero bytes in the bytes array, plus
@@ -33,7 +35,7 @@ namespace Base58Check
         // the number of leading zeros in the Base58 representation.
         // i.e. it depends on the payload bytes
         size_t leadingZeroBytes = 0;
-        while (leadingZeroBytes < inputWithChecksum.size() && bytes[leadingZeroBytes] == 0)
+        while (leadingZeroBytes < inputWithChecksum.size() && inputWithChecksum[leadingZeroBytes] == 0)
             ++leadingZeroBytes;
 
         std::string base58Digits(leadingZeroBytes, Base58Table[0]);

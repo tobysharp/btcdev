@@ -43,15 +43,16 @@ namespace Bitcoin
     {
         return EC::GenerateRandomPrivateKey(rnd);
     }
-
     Address PublicKeyToAddress(const PublicKey& publicKey, uint8_t version = 0x00)
     {
         const auto compressedPublicKey = publicKey.Compressed();
         const auto hashOfCompressedPublicKey = DoubleHashShort(compressedPublicKey.begin(), compressedPublicKey.end());
+        return Base58Check::Encode(hashOfCompressedPublicKey, version);
+    }
 
-        ByteArray<21> bytesToEncode = { version };
-        std::copy(hashOfCompressedPublicKey.begin(), hashOfCompressedPublicKey.end(), bytesToEncode.begin() + 1);
-        return Base58Check::Encode(bytesToEncode);
+    std::string PrivateKeyToWalletImportFormat(const PrivateKey& privateKey)
+    {
+        return Base58Check::Encode(ByteArray<32>(privateKey.beginBigEndianBytes(), privateKey.endBigEndianBytes()), 0x80);
     }
 
     template <typename Iter, typename Rnd>

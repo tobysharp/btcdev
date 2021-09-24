@@ -14,5 +14,6 @@
     <ClInclude Include="Base58Check.h" />
     <ClInclude Include="Bitcoin.h" />
     <ClInclude Include="ByteArray.h" />
+    <ClInclude Include="bip039.h" />
   </ItemGroup>
 </Project>

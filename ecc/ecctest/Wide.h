@@ -26,7 +26,7 @@ namespace Detail
     template <> struct DoubleSize<uint32_t> { using type = uint64_t; };
 }
 
-template <size_t Bits>
+template <size_t Bits = 32>
 class UIntW
 {
 public:

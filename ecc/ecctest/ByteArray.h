@@ -15,7 +15,7 @@ public:
             throw std::runtime_error("Static array unexpectedly shorter than desired buffer");
     }
     constexpr ByteArray(const std::array<uint8_t, N>& arr) : bytes(arr) {}
-    template <uint8_t... xx> constexpr ByteArray(uint8_t...) : bytes(xx...) {}
+    template <typename... Args> constexpr ByteArray(Args... args) : bytes{ args... } {}
     template <typename Iter> constexpr ByteArray(Iter begin, Iter end)
     {
         std::copy(begin, end, bytes.begin());
@@ -45,8 +45,18 @@ public:
         return rv;
     }
 
-    uint8_t operator[](size_t i) const { return bytes[i]; }
-    uint8_t& operator[](size_t i) { return bytes[i]; }
+    friend ByteArray<N + 1> operator |(const ByteArray& lhs, uint8_t rhs)
+    {
+        return lhs | ByteArray<1>(rhs);
+    }
+
+    friend ByteArray<N + 1> operator |(uint8_t lhs, const ByteArray& rhs)
+    {
+        return ByteArray<1>(lhs) | rhs;
+    }
+
+    constexpr uint8_t operator[](size_t i) const { return bytes[i]; }
+    constexpr uint8_t& operator[](size_t i) { return bytes[i]; }
 
     template <typename Word = uint32_t>
     std::array<Word, (N + sizeof(Word) - 1) / sizeof(Word)> ToLittleEndianWords() const
@@ -78,12 +88,15 @@ public:
 
     void push_back(uint8_t byte) { bytes.push_back(byte); }
 
+    uint8_t operator [](size_t index) const { return bytes[index]; }
+    uint8_t& operator [](size_t index) { return bytes[index]; }
+
     template <size_t  N>
     friend ByteArray operator |(const ByteArray& lhs, const ByteArray<N>& rhs)
     {
         std::vector<uint8_t> rv(lhs.size() + rhs.size());
         std::copy(lhs.begin(), lhs.end(), rv.begin());
-        std::copy(rhs.begin(), rhs.end(), rv.begin + lhs.size());
+        std::copy(rhs.begin(), rhs.end(), rv.begin() + lhs.size());
         return rv;
     }
 
