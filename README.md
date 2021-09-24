@@ -5,7 +5,7 @@ A sandbox for exploration of Bitcoin-related code including ECDSA, SHA256, etc.
 For those curious, this was a vacation project for me during two weeks in Jamaica's rainy season. 
 I implemented ECDSA secp256k1, SHA256, RIPEMD160, and DER from the specs without reference to existing implementations, purely for my own learning and development.
 Now sharing by popular request. Note: I'm sure other, more mature implementations are better in many ways, and there are many ways in which this could be improved. 
-This code has not been thoroughly tested and therefore should NOT be used for any Bitcoin transactions involving nonzero value.
+This code has not been thoroughly tested and therefore should NOT be used for any Bitcoin transactions involving nonzero value. For educational purposes ONLY.
 
 This repo is modern C++. Code should be mostly self-explanatory. 
 
